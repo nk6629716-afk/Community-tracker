@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 90" fill="none">
+  <!-- Vector 9: 4-node progressive wave line -->
+  <path
+    d="M 12 74 C 22 74 28 50 42 50 C 56 50 60 70 74 70 C 86 70 90 48 98 42"
+    stroke="currentColor"
+    stroke-width="2.4"
+    stroke-linecap="round"
+  />
+  <circle cx="12" cy="74" r="4.5" fill="currentColor" />
+  <circle cx="42" cy="50" r="4.5" fill="currentColor" />
+  <circle cx="74" cy="70" r="4.5" fill="currentColor" />
+  <circle cx="98" cy="42" r="5.5" fill="currentColor" />
+</svg>

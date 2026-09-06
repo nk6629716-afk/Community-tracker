@@ -1,0 +1,6 @@
+{
+  "name": "Citypulse",
+  "description": "Send the signal. See the change. Full-Stack Civic Issue Reporting & Community Intelligence Platform.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

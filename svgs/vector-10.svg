@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 90 85" fill="none">
+  <!-- Vector 10: Diverging curved paths with ambient celestial particles -->
+  <circle cx="16" cy="30" r="4.5" fill="currentColor" />
+  <circle cx="70" cy="65" r="4.5" fill="currentColor" />
+
+  <!-- Upper curve -->
+  <path
+    d="M 16 30 C 42 26 58 46 70 65"
+    stroke="currentColor"
+    stroke-width="2.2"
+    stroke-linecap="round"
+  />
+
+  <!-- Lower bowing curve with midpoint dot -->
+  <path
+    d="M 16 30 C 30 52 50 68 70 65"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+  />
+  <circle cx="48" cy="42" r="2.2" fill="currentColor" />
+
+  <!-- Ambient floating particle specks -->
+  <circle cx="62" cy="24" r="1.5" fill="currentColor" />
+  <circle cx="46" cy="74" r="1.5" fill="currentColor" />
+  <circle cx="28" cy="20" r="1" fill="currentColor" />
+</svg>
