@@ -4,7 +4,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 import { Server as SocketIOServer } from 'socket.io';
 import { createServer as createViteServer } from 'vite';
-import { citypulseDb } from './src/server/database';
+import { dataService } from './src/server/data-service';
 import { hashPassword, comparePassword, signToken, verifyToken } from './src/server/auth';
 import { analyzeIssueWithGemini } from './src/server/ai';
 
@@ -17,7 +17,7 @@ const PORT = Number(process.env.PORT) || 3000;
 // Initialize Realtime Socket.IO
 export const io = new SocketIOServer(httpServer, {
   cors: {
-    origin: '*',
+    origin: process.env.CLIENT_URL || true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
   },
 });
@@ -70,8 +70,13 @@ function authenticateUser(req: express.Request, res: express.Response, next: exp
 app.use(authenticateUser);
 
 // 1. Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', app: 'Citypulse', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  try {
+    await dataService.healthcheck();
+    res.json({ status: 'ok', app: 'Citypulse', persistence: dataService.isPersistent ? 'postgres' : 'local-demo', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'unavailable', app: 'Citypulse', error: 'Database connection failed' });
+  }
 });
 
 // ==========================================
@@ -91,13 +96,13 @@ app.post('/api/auth/signup', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
-    const existing = citypulseDb.findUserByEmail(email);
+    const existing = await dataService.findUserByEmail(email);
     if (existing) {
       return res.status(409).json({ error: 'An account with this email address already exists.' });
     }
 
     const passwordHash = await hashPassword(password);
-    const user = citypulseDb.createUser({
+    const user = await dataService.createUser({
       email,
       passwordHash,
       name,
@@ -139,7 +144,7 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required.' });
     }
 
-    const user = citypulseDb.findUserByEmail(email);
+    const user = await dataService.findUserByEmail(email);
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials. No account found with this email.' });
     }
@@ -181,13 +186,13 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // GET /api/auth/me - Current user session
-app.get('/api/auth/me', (req, res) => {
+app.get('/api/auth/me', async (req, res) => {
   const currentUser = (req as any).user;
   if (!currentUser) {
     return res.status(401).json({ error: 'Not authenticated' });
   }
 
-  const user = citypulseDb.findUserById(currentUser.userId);
+  const user = await dataService.findUserById(currentUser.userId);
   if (!user) {
     return res.status(404).json({ error: 'User not found' });
   }
@@ -214,10 +219,10 @@ app.post('/api/auth/logout', (req, res) => {
 // ==========================================
 
 // Helper function to handle reports list
-function handleGetReports(req: express.Request, res: express.Response) {
+async function handleGetReports(req: express.Request, res: express.Response) {
   try {
     const { search, category, status, severity, sort, userId } = req.query;
-    const reports = citypulseDb.getAllReports({
+    const reports = await dataService.getAllReports({
       search: search ? String(search) : undefined,
       category: category ? String(category) : undefined,
       status: status ? String(status) : undefined,
@@ -236,8 +241,8 @@ app.get('/api/reports', handleGetReports);
 app.get('/api/issues', handleGetReports);
 
 // GET /api/reports/:id & /api/issues/:id
-function handleGetReportById(req: express.Request, res: express.Response) {
-  const report = citypulseDb.getReportById(req.params.id);
+async function handleGetReportById(req: express.Request, res: express.Response) {
+  const report = await dataService.getReportById(req.params.id);
   if (!report) {
     return res.status(404).json({ error: 'Report not found' });
   }
@@ -279,7 +284,7 @@ async function handleCreateReport(req: express.Request, res: express.Response) {
 
     const currentUser = (req as any).user;
 
-    const newReport = citypulseDb.createReport({
+    const newReport = await dataService.createReport({
       title,
       description,
       category,
@@ -311,7 +316,7 @@ app.post('/api/reports', handleCreateReport);
 app.post('/api/issues', handleCreateReport);
 
 // PATCH /api/reports/:id/status & /api/issues/:id/status - Update Status with Realtime Broadcast
-function handleUpdateStatus(req: express.Request, res: express.Response) {
+async function handleUpdateStatus(req: express.Request, res: express.Response) {
   try {
     const { status, comment, updated_by } = req.body;
     if (!status) {
@@ -319,9 +324,12 @@ function handleUpdateStatus(req: express.Request, res: express.Response) {
     }
 
     const currentUser = (req as any).user;
+    if (!currentUser || (currentUser.role !== 'AUTHORITY' && currentUser.role !== 'ADMIN')) {
+      return res.status(403).json({ error: 'Only municipal authority accounts can change report status.' });
+    }
     const authorName = currentUser?.name || updated_by || 'Authority Official';
 
-    const updated = citypulseDb.updateReportStatus(
+    const updated = await dataService.updateReportStatus(
       req.params.id,
       status,
       comment || `Status updated to ${status.toUpperCase()}`,
@@ -346,9 +354,9 @@ app.patch('/api/issues/:id/status', handleUpdateStatus);
 app.patch('/api/reports/:id', handleUpdateStatus);
 
 // POST /api/reports/:id/upvote & /api/issues/:id/upvote
-function handleUpvote(req: express.Request, res: express.Response) {
+async function handleUpvote(req: express.Request, res: express.Response) {
   try {
-    const updated = citypulseDb.addUpvote(req.params.id);
+    const updated = await dataService.addUpvote(req.params.id);
     if (!updated) {
       return res.status(404).json({ error: 'Report not found' });
     }
@@ -363,15 +371,15 @@ app.post('/api/reports/:id/upvote', handleUpvote);
 app.post('/api/issues/:id/upvote', handleUpvote);
 
 // GET /api/reports/:id/history
-app.get('/api/reports/:id/history', (req, res) => {
-  const report = citypulseDb.getReportById(req.params.id);
+app.get('/api/reports/:id/history', async (req, res) => {
+  const report = await dataService.getReportById(req.params.id);
   if (!report) {
     return res.status(404).json({ error: 'Report not found' });
   }
   res.json(report.history || []);
 });
-app.get('/api/issues/:id/history', (req, res) => {
-  const report = citypulseDb.getReportById(req.params.id);
+app.get('/api/issues/:id/history', async (req, res) => {
+  const report = await dataService.getReportById(req.params.id);
   if (!report) {
     return res.status(404).json({ error: 'Report not found' });
   }
@@ -379,9 +387,9 @@ app.get('/api/issues/:id/history', (req, res) => {
 });
 
 // GET /api/analytics - Analytics & community intelligence
-app.get('/api/analytics', (req, res) => {
+app.get('/api/analytics', async (req, res) => {
   try {
-    const data = citypulseDb.getAnalytics();
+    const data = await dataService.getAnalytics();
     res.json(data);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to generate analytics' });
