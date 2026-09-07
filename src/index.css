@@ -8,7 +8,7 @@ body {
   background-color: #060713;
   color: #f1f5f9;
   font-family: 'Inter', sans-serif;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* ==========================================

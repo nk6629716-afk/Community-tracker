@@ -61,6 +61,14 @@ export function markIssueAsVoted(issueId: string): void {
   }
 }
 
+const RAW_API_URL = (import.meta as any).env?.VITE_API_URL || '';
+export const API_BASE_URL = RAW_API_URL.replace(/\/+$/, '');
+
+export function apiUrl(endpoint: string): string {
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${cleanEndpoint}`;
+}
+
 function getHeaders(customHeaders?: Record<string, string>): HeadersInit {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -82,7 +90,7 @@ export const api = {
     age?: number;
     area?: string;
   }): Promise<AuthResponse> {
-    const res = await fetch('/api/auth/signup', {
+    const res = await fetch(apiUrl('/api/auth/signup'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -100,7 +108,7 @@ export const api = {
     password: string;
     targetRole: 'CITIZEN' | 'AUTHORITY';
   }): Promise<AuthResponse> {
-    const res = await fetch('/api/auth/login', {
+    const res = await fetch(apiUrl('/api/auth/login'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -118,7 +126,7 @@ export const api = {
     if (!token) return null;
 
     try {
-      const res = await fetch('/api/auth/me', {
+      const res = await fetch(apiUrl('/api/auth/me'), {
         headers: getHeaders(),
       });
       if (!res.ok) {
@@ -134,7 +142,7 @@ export const api = {
 
   async logout(): Promise<void> {
     try {
-      await fetch('/api/auth/logout', { method: 'POST', headers: getHeaders() });
+      await fetch(apiUrl('/api/auth/logout'), { method: 'POST', headers: getHeaders() });
     } finally {
       setAuthToken(null);
     }
@@ -157,7 +165,7 @@ export const api = {
     if (params?.sort) query.append('sort', params.sort);
     if (params?.userId) query.append('userId', params.userId);
 
-    const res = await fetch(`/api/reports?${query.toString()}`, {
+    const res = await fetch(apiUrl(`/api/reports?${query.toString()}`), {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch reports');
@@ -165,7 +173,7 @@ export const api = {
   },
 
   async getIssue(id: string): Promise<Issue> {
-    const res = await fetch(`/api/reports/${id}`, {
+    const res = await fetch(apiUrl(`/api/reports/${id}`), {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch report details');
@@ -189,7 +197,7 @@ export const api = {
     ai_reason?: string;
     recommended_action?: string;
   }): Promise<Issue> {
-    const res = await fetch('/api/reports', {
+    const res = await fetch(apiUrl('/api/reports'), {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(payload),
@@ -208,7 +216,7 @@ export const api = {
     location?: string;
     photo?: string;
   }): Promise<AIAnalysis> {
-    const res = await fetch('/api/ai/analyze', {
+    const res = await fetch(apiUrl('/api/ai/analyze'), {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify(payload),
@@ -225,7 +233,7 @@ export const api = {
     comment?: string,
     updatedBy?: string
   ): Promise<{ issue: Issue }> {
-    const res = await fetch(`/api/reports/${id}/status`, {
+    const res = await fetch(apiUrl(`/api/reports/${id}/status`), {
       method: 'PATCH',
       headers: getHeaders(),
       body: JSON.stringify({ status, comment, updated_by: updatedBy }),
@@ -235,7 +243,7 @@ export const api = {
   },
 
   async voteIssue(id: string): Promise<{ success: boolean; issue?: Issue; message?: string }> {
-    const res = await fetch(`/api/reports/${id}/upvote`, {
+    const res = await fetch(apiUrl(`/api/reports/${id}/upvote`), {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -248,7 +256,7 @@ export const api = {
   },
 
   async getAnalytics(): Promise<AnalyticsData> {
-    const res = await fetch('/api/analytics', {
+    const res = await fetch(apiUrl('/api/analytics'), {
       headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to fetch analytics');

@@ -12,7 +12,7 @@ dotenv.config();
 
 const app = express();
 const httpServer = http.createServer(app);
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 // Initialize Realtime Socket.IO
 export const io = new SocketIOServer(httpServer, {
@@ -27,6 +27,27 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
   });
+});
+
+// CORS Middleware to allow cross-origin requests from Netlify frontend
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const clientUrl = process.env.CLIENT_URL;
+
+  if (clientUrl && clientUrl !== '*') {
+    res.header('Access-Control-Allow-Origin', clientUrl);
+  } else {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+  }
+
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(204);
+  }
+  next();
 });
 
 // Middleware for parsing JSON with limit for photo uploads

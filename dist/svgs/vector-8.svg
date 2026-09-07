@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 110 80" fill="none">
+  <!-- Vector 8: Smooth gentle wave connector with nodes -->
+  <path
+    d="M 12 56 C 24 64 36 64 48 58 C 60 52 70 42 82 42 C 90 42 94 48 98 48"
+    stroke="currentColor"
+    stroke-width="2.4"
+    stroke-linecap="round"
+  />
+  <circle cx="58" cy="53" r="4.5" fill="currentColor" />
+  <circle cx="98" cy="48" r="5.5" fill="currentColor" />
+</svg>

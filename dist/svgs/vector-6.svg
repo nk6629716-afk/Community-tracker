@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 115 80" fill="none">
+  <!-- Vector 6: Rising wave line with nodes and directional arrow -->
+  <path
+    d="M 10 64 C 18 64 26 30 46 30 C 58 30 62 58 74 58 C 84 58 92 36 102 20"
+    stroke="currentColor"
+    stroke-width="2.4"
+    stroke-linecap="round"
+  />
+  <circle cx="10" cy="64" r="4.5" fill="currentColor" />
+  <circle cx="46" cy="30" r="4.5" fill="currentColor" />
+  <circle cx="74" cy="58" r="4.5" fill="currentColor" />
+  <!-- Terminal Arrowhead pointing up-right -->
+  <path
+    d="M 96 16 L 106 18 L 102 28 Z"
+    fill="currentColor"
+  />
+</svg>

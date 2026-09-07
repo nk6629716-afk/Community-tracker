@@ -39,8 +39,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onOpenAuth={onOpenAuth}
       />
 
-      {/* 4 Core Metrics Row */}
-      <StatsOverview analytics={analytics} isLoading={isLoading} />
+      {/* 4 Core Metrics Row (Section immediately following Hero scroll sequence) */}
+      <div id="dashboard-metrics" className="scroll-mt-24">
+        <StatsOverview analytics={analytics} isLoading={isLoading} />
+      </div>
 
       {/* Main Map & Intelligence Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

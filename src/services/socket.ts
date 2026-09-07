@@ -3,9 +3,12 @@ import { Issue } from '../types';
 
 let socket: Socket | null = null;
 
+const RAW_API_URL = (import.meta as any).env?.VITE_API_URL || '';
+const SOCKET_SERVER_URL = RAW_API_URL.replace(/\/+$/, '') || (typeof window !== 'undefined' ? window.location.origin : '');
+
 export function getSocket(): Socket {
   if (!socket) {
-    socket = io(window.location.origin, {
+    socket = io(SOCKET_SERVER_URL, {
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 10,
       reconnectionDelay: 2000,
