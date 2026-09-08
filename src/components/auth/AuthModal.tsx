@@ -313,12 +313,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       required
                       value={officerCode}
                       onChange={(e) => setOfficerCode(e.target.value)}
-                      placeholder='Enter code (e.g. "Municipal Officer")'
+                      placeholder="Enter developer authorization code"
                       className="glass-input w-full pl-10 pr-4 py-2 rounded-xl text-sm border-cyan-400/40 focus:border-cyan-400"
                     />
                   </div>
                   <p className="text-[11px] text-cyan-200/80">
-                    Required for Municipal Authority badge and Administrative control panel.
+                    This authorization code was provided by one of our developers.
                   </p>
                 </div>
               )}
