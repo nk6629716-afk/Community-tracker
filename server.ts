@@ -74,8 +74,14 @@ app.get('/api/health', async (req, res) => {
   try {
     await dataService.healthcheck();
     res.json({ status: 'ok', app: 'Citypulse', persistence: dataService.isPersistent ? 'postgres' : 'local-demo', timestamp: new Date().toISOString() });
-  } catch {
-    res.status(503).json({ status: 'unavailable', app: 'Citypulse', error: 'Database connection failed' });
+  } catch (err: any) {
+    console.error('[Database Healthcheck Error]:', err);
+    res.status(503).json({ 
+      status: 'unavailable', 
+      app: 'Citypulse', 
+      error: 'Database connection failed',
+      details: err?.message || String(err)
+    });
   }
 });
 
