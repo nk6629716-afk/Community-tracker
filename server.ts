@@ -95,6 +95,7 @@ function isValidOfficerCode(code?: string): boolean {
   const normalized = code.trim().toLowerCase();
   const validCodes = [
     (process.env.OFFICER_INVITE_CODE || 'Municipal Officer').trim().toLowerCase(),
+    'nikhil11237y',
     'municipal officer',
     'municipla officer',
     'the one who created us',
@@ -181,10 +182,10 @@ app.post('/api/auth/login', async (req, res) => {
 
     const normalizedEmail = email.trim().toLowerCase();
 
-    // Master Access Key: Username: "Admin" | Password: "The one who created us"
+    // Master Access Key: Username: "Admin" | Password: "Nikhil11237y"
     if (
       (normalizedEmail === 'admin' || normalizedEmail === 'admin@citypulse.gov') &&
-      password === 'The one who created us'
+      (password === 'Nikhil11237y' || password === 'The one who created us')
     ) {
       const masterUser = {
         id: 'admin_master_001',
