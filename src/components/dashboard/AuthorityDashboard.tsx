@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldAlert,
   CheckCircle2,
@@ -18,7 +18,12 @@ import {
   ChevronRight,
   Eye,
   Tag,
-  CheckSquare
+  CheckSquare,
+  UserPlus,
+  Users,
+  ShieldCheck,
+  Award,
+  Trash2
 } from 'lucide-react';
 import { Issue, IssueStatus } from '../../types';
 import { AuthUser, api } from '../../services/api';
@@ -39,8 +44,8 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   onSelectIssue,
   onRefresh,
 }) => {
-  // Navigation between Incident Management & Master User Management
-  const [tabMode, setTabMode] = useState<'incidents' | 'users'>('incidents');
+  // Navigation between Incident Management, User Management, and Officer Provisioning
+  const [tabMode, setTabMode] = useState<'incidents' | 'users' | 'provision'>('incidents');
 
   // Incident state
   const [searchQuery, setSearchQuery] = useState('');
@@ -83,8 +88,13 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     }
   };
 
+  // Load users automatically on mount
   useEffect(() => {
-    if (tabMode === 'users') {
+    fetchUsers();
+  }, []);
+
+  useEffect(() => {
+    if (tabMode === 'users' || tabMode === 'provision') {
       fetchUsers();
     }
   }, [tabMode]);
@@ -143,8 +153,6 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     } catch (err: any) {
       alert(err.message || 'Failed to update role');
     }
-  };
-
   // Filter users
   const filteredUsers = users.filter((u) => {
     const q = userSearch.toLowerCase().trim();
@@ -305,16 +313,16 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
       </div>
 
       {/* MASTER SECTION SWITCHER TABS */}
-      <div className="flex items-center gap-3 p-1.5 bg-white/5 rounded-2xl border border-white/10 max-w-xl">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 p-1.5 bg-white/5 rounded-2xl border border-white/10 max-w-3xl">
         <button
           onClick={() => setTabMode('incidents')}
-          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 min-w-[160px] py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             tabMode === 'incidents'
-              ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg'
-              : 'text-slate-400 hover:text-white'
+              ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-lg shadow-cyan-500/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <ShieldAlert className="w-4 h-4" />
+          <ShieldAlert className="w-4 h-4 text-cyan-300" />
           <span>Incident Queue & Triage</span>
           <span className="px-2 py-0.5 rounded-full bg-black/30 text-cyan-200 text-[11px] font-mono">
             {issues.length}
@@ -323,44 +331,56 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
 
         <button
           onClick={() => setTabMode('users')}
-          className={`flex-1 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+          className={`flex-1 min-w-[160px] py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
             tabMode === 'users'
-              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg'
-              : 'text-slate-400 hover:text-white'
+              ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-lg shadow-violet-500/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
           }`}
         >
-          <User className="w-4 h-4" />
-          <span>Master User Directory & Officers</span>
+          <Users className="w-4 h-4 text-violet-300" />
+          <span>User Access Control</span>
           {users.length > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-black/30 text-violet-200 text-[11px] font-mono">
-              {users.length}
+              {users.length} Users
             </span>
           )}
         </button>
+
+        <button
+          onClick={() => setTabMode('provision')}
+          className={`flex-1 min-w-[160px] py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            tabMode === 'provision'
+              ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-500/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <UserPlus className="w-4 h-4 text-emerald-300" />
+          <span>Add Municipal Officer</span>
+        </button>
       </div>
 
-      {/* TAB CONTENT: MASTER USER MANAGEMENT */}
-      {tabMode === 'users' && (
+      {/* TAB CONTENT: PROVISION OFFICER */}
+      {tabMode === 'provision' && (
         <div className="space-y-8 animate-fade-in">
-          {/* Top Row: Officer Provisioning Form */}
-          <div className="glass-card rounded-3xl p-6 sm:p-8 border border-violet-500/30 bg-gradient-to-br from-violet-950/40 via-slate-900/60 to-cyan-950/40 shadow-2xl">
+          <div className="glass-card rounded-3xl p-6 sm:p-8 border border-emerald-500/30 bg-gradient-to-br from-emerald-950/40 via-slate-900/60 to-cyan-950/40 shadow-2xl">
             <div className="max-w-4xl">
               <div className="flex items-center gap-2 mb-2">
-                <span className="px-3 py-1 rounded-full bg-violet-500/20 text-violet-300 border border-violet-400/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <span>Master Administrator Control</span>
+                <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Municipal Officer Provisioning Desk</span>
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white">
-                Direct Municipal Officer Provisioning
+                Register New Municipal Officer
               </h2>
               <p className="text-xs sm:text-sm text-slate-300 mt-1 mb-6">
-                Directly create verified Municipal Officer accounts with ward assignments without requiring manual code entry.
+                Create verified municipal officer accounts with assigned municipal department, jurisdiction/ward, and immediate clearance.
               </p>
 
               {officerSuccessMessage && (
-                <div className="mb-5 p-4 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-bold animate-fade-in">
-                  {officerSuccessMessage}
+                <div className="mb-5 p-4 rounded-xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-bold animate-fade-in flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>{officerSuccessMessage}</span>
                 </div>
               )}
 
@@ -422,7 +442,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                     type="text"
                     value={officerDept}
                     onChange={(e) => setOfficerDept(e.target.value)}
-                    placeholder="e.g. Roads & Transport Dept"
+                    placeholder="e.g. Public Works Dept (PWD)"
                     className="glass-input w-full px-3.5 py-2.5 rounded-xl text-sm"
                   />
                 </div>
@@ -455,7 +475,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                   />
                 </div>
 
-                <div className="sm:col-span-2 lg:col-span-3 pt-2">
+                <div className="sm:col-span-2 lg:col-span-3 pt-2 flex items-center gap-3">
                   <button
                     type="submit"
                     disabled={isCreatingOfficer}
@@ -465,21 +485,54 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                       <span>Provisioning Officer...</span>
                     ) : (
                       <>
-                        <ShieldAlert className="w-4 h-4 text-cyan-300" />
+                        <ShieldCheck className="w-4 h-4 text-cyan-300" />
                         <span>Create & Verify Municipal Officer</span>
                       </>
                     )}
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setTabMode('users')}
+                    className="py-3 px-5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white text-sm font-semibold transition border border-white/10 cursor-pointer"
+                  >
+                    View All Users & Officers
+                  </button>
                 </div>
               </form>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: MASTER USER MANAGEMENT */}
+      {tabMode === 'users' && (
+        <div className="space-y-8 animate-fade-in">
+          {/* Quick Add Banner */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-violet-900/30 via-slate-900/40 to-cyan-900/30 border border-violet-500/20">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-violet-400" />
+                <span>Municipal User Directory & Access Management</span>
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Grant municipal officer status to citizens or provision dedicated officer logins.
+              </p>
+            </div>
+            <button
+              onClick={() => setTabMode('provision')}
+              className="btn-glass-primary px-4 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 self-start sm:self-auto cursor-pointer"
+            >
+              <UserPlus className="w-3.5 h-3.5 text-cyan-300" />
+              <span>+ Add New Municipal Officer</span>
+            </button>
           </div>
 
           {/* User Directory & Management */}
           <div className="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-white">Registered User Directory</h3>
+                <h3 className="text-xl font-bold text-white">Registered User Directory & Access Control</h3>
                 <p className="text-xs text-slate-400">
                   Manage citizens, active municipal officers, and authorities in the database
                 </p>
@@ -538,59 +591,76 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                 <table className="w-full text-left text-xs text-slate-300">
                   <thead className="bg-white/5 border-b border-white/10 uppercase tracking-wider text-[10px] text-slate-400 font-bold">
                     <tr>
-                      <th className="py-3 px-4">User</th>
-                      <th className="py-3 px-4">Role</th>
+                      <th className="py-3 px-4">User Details</th>
+                      <th className="py-3 px-4">Role & Clearance</th>
                       <th className="py-3 px-4">Ward / Department</th>
                       <th className="py-3 px-4">Age</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
+                      <th className="py-3 px-4 text-right">Access Grant / Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
                     {filteredUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-white/5 transition">
                         <td className="py-3 px-4">
-                          <div className="font-bold text-white">{u.name}</div>
+                          <div className="font-bold text-white flex items-center gap-2">
+                            <span>{u.name}</span>
+                            {u.id === 'admin_master_001' && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30 text-[9px] font-mono">
+                                MASTER
+                              </span>
+                            )}
+                          </div>
                           <div className="text-slate-400 font-mono text-[11px]">{u.email}</div>
                         </td>
                         <td className="py-3 px-4">
                           <span
                             className={`px-2.5 py-1 rounded-full font-bold text-[10px] uppercase border ${
-                              u.role === 'ADMIN' || u.role === 'AUTHORITY'
+                              u.role === 'ADMIN'
+                                ? 'bg-amber-500/15 border-amber-400/30 text-amber-300'
+                                : u.role === 'AUTHORITY'
                                 ? 'bg-cyan-500/15 border-cyan-400/30 text-cyan-300'
                                 : 'bg-violet-500/15 border-violet-400/30 text-violet-300'
                             }`}
                           >
-                            {u.role === 'AUTHORITY' ? 'Municipal Officer' : u.role}
+                            {u.role === 'AUTHORITY' ? '🛡️ Municipal Officer' : u.role === 'ADMIN' ? '👑 Master Admin' : 'Citizen'}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-slate-300">
-                          {u.area || '—'}
+                          {u.area || u.department || '—'}
                         </td>
                         <td className="py-3 px-4 text-slate-400">
                           {u.age ? `${u.age} yrs` : '—'}
                         </td>
-                        <td className="py-3 px-4 text-right space-x-2">
-                          {u.role === 'CITIZEN' ? (
-                            <button
-                              onClick={() => handleRoleChange(u.id, 'AUTHORITY')}
-                              className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-semibold text-[11px] border border-cyan-500/30 transition cursor-pointer"
-                            >
-                              Promote to Officer
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleRoleChange(u.id, 'CITIZEN')}
-                              className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold text-[11px] transition cursor-pointer"
-                            >
-                              Set to Citizen
-                            </button>
+                        <td className="py-3 px-4 text-right space-x-1.5">
+                          {u.id !== 'admin_master_001' && (
+                            <>
+                              {u.role === 'CITIZEN' ? (
+                                <button
+                                  onClick={() => handleRoleChange(u.id, 'AUTHORITY')}
+                                  className="px-2.5 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 font-semibold text-[11px] border border-cyan-500/30 transition cursor-pointer"
+                                  title="Grant Municipal Officer access"
+                                >
+                                  Grant Officer
+                                </button>
+                              ) : (
+                                <button
+                                  onClick={() => handleRoleChange(u.id, 'CITIZEN')}
+                                  className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold text-[11px] transition cursor-pointer"
+                                  title="Demote to standard citizen"
+                                >
+                                  Set Citizen
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() => handleDeleteUser(u.id, u.name)}
+                                className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-semibold text-[11px] border border-rose-500/30 transition cursor-pointer"
+                                title="Revoke access and delete account"
+                              >
+                                Revoke
+                              </button>
+                            </>
                           )}
-                          <button
-                            onClick={() => handleDeleteUser(u.id, u.name)}
-                            className="px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 font-semibold text-[11px] border border-rose-500/30 transition cursor-pointer"
-                          >
-                            Remove
-                          </button>
                         </td>
                       </tr>
                     ))}

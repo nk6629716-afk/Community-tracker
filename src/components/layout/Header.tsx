@@ -74,13 +74,15 @@ export const Header: React.FC<HeaderProps> = ({
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = currentTab === item.id;
+                const isAuthorityUser = currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN';
+
                 return (
                   <button
                     key={item.id}
                     onClick={() => {
                       if (item.id === 'citizen' && !currentUser) {
                         onOpenAuth('CITIZEN', 'login');
-                      } else if (item.id === 'authority' && (!currentUser || currentUser.role !== 'AUTHORITY')) {
+                      } else if (item.id === 'authority' && !isAuthorityUser) {
                         onOpenAuth('AUTHORITY', 'login');
                       } else {
                         onNavigate(item.id);
@@ -90,10 +92,13 @@ export const Header: React.FC<HeaderProps> = ({
                       isActive
                         ? 'bg-white/10 text-cyan-300 border border-cyan-400/30 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
-                    }`}
+                    } ${item.id === 'authority' && isAuthorityUser ? 'border border-cyan-500/40 text-cyan-300' : ''}`}
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span>{item.label}</span>
+                    {item.id === 'authority' && isAuthorityUser && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                    )}
                   </button>
                 );
               })}
@@ -105,7 +110,7 @@ export const Header: React.FC<HeaderProps> = ({
               {currentUser ? (
                 <div className="flex items-center gap-2">
                   <div 
-                    onClick={() => onNavigate(currentUser.role === 'AUTHORITY' ? 'authority' : 'citizen')}
+                    onClick={() => onNavigate(currentUser.role === 'AUTHORITY' || currentUser.role === 'ADMIN' ? 'authority' : 'citizen')}
                     className="glass-pill px-3 py-1.5 rounded-full flex items-center gap-2 border border-white/15 cursor-pointer hover:border-cyan-400/40 transition"
                   >
                     <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-400 to-violet-500 flex items-center justify-center text-white text-[11px] font-bold">
@@ -116,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
                         {currentUser.name}
                       </span>
                       <span className="text-[10px] text-cyan-300 font-mono leading-none">
-                        {currentUser.role}
+                        {currentUser.role === 'AUTHORITY' || currentUser.role === 'ADMIN' ? '🛡️ Admin / Officer' : currentUser.role}
                       </span>
                     </div>
                   </div>
@@ -166,8 +171,13 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Bottom Navigation Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#060713]/90 backdrop-blur-xl border-t border-white/10 shadow-2xl">
-        <div className="grid grid-cols-5 items-center h-14">
-          {navItems.slice(0, 5).map((item) => {
+        <div className={`grid ${currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN' ? 'grid-cols-6' : 'grid-cols-5'} items-center h-14`}>
+          {navItems.filter(item => {
+            if (item.id === 'authority' && currentUser?.role !== 'AUTHORITY' && currentUser?.role !== 'ADMIN') {
+              return false;
+            }
+            return true;
+          }).map((item) => {
             const Icon = item.icon;
             const isActive = currentTab === item.id;
             return (
