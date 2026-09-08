@@ -70,14 +70,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setErrorMessage(null);
       setExpression('neutral');
 
-      // Autofill helper for seamless testing
-      if (effRole === 'AUTHORITY') {
-        setEmail('Admin');
-        setPassword('The one who created us');
-      } else {
-        setEmail('citizen@citypulse.gov');
-        setPassword('citizen123');
-      }
+      // Clear all inputs on open
+      setEmail('');
+      setPassword('');
+      setName('');
+      setAge('');
+      setArea('');
+      setOfficerCode('');
     }
   }, [isOpen, initialRole, defaultRole, initialMode, defaultMode]);
 
@@ -118,13 +117,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setHasChosenRole(true);
     setErrorMessage(null);
     setExpression('neutral');
-    if (role === 'AUTHORITY') {
-      setEmail('Admin');
-      setPassword('The one who created us');
-    } else {
-      setEmail('citizen@citypulse.gov');
-      setPassword('citizen123');
-    }
+    setEmail('');
+    setPassword('');
+    setOfficerCode('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -415,21 +410,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
               />
             </div>
-            {mode === 'login' && selectedRole === 'AUTHORITY' && (
-              <div className="mt-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[11px] text-cyan-300 flex items-center justify-between">
-                <span>🔑 Master Access: <b>Admin</b> / <b>The one who created us</b></span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmail('Admin');
-                    setPassword('The one who created us');
-                  }}
-                  className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 font-semibold cursor-pointer"
-                >
-                  Quick Fill
-                </button>
-              </div>
-            )}
           </div>
 
           <button

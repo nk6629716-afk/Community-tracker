@@ -116,11 +116,16 @@ export default function App() {
     setIsAuthModalOpen(true);
   };
 
-  // Handle Login / Signup Success - Redirects to Dashboard
+  // Handle Login / Signup Success - Redirects directly to Administrative Panel for Officers/Admins
   const handleAuthSuccess = (user: AuthUser) => {
     setCurrentUser(user);
-    showToast(`Welcome back, ${user.name}! Redirecting to Dashboard.`);
-    setCurrentTab('dashboard');
+    if (user.role === 'AUTHORITY' || user.role === 'ADMIN') {
+      showToast(`🛡️ Officer Verified: Welcome ${user.name}! Accessing Administrative Panel.`);
+      setCurrentTab('authority');
+    } else {
+      showToast(`Welcome back, ${user.name}!`);
+      setCurrentTab('dashboard');
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
