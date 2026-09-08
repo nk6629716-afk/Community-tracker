@@ -150,6 +150,48 @@ export const api = {
     }
   },
 
+  // Master Admin & User Management endpoints
+  async getUsers(): Promise<AuthUser[]> {
+    const res = await fetch(apiUrl('/api/admin/users'), { headers: getHeaders() });
+    if (!res.ok) throw new Error('Failed to fetch user directory');
+    return res.json();
+  },
+
+  async createOfficer(payload: {
+    name: string;
+    email: string;
+    password: string;
+    department?: string;
+    area?: string;
+    age?: number;
+  }): Promise<{ message: string; user: AuthUser }> {
+    const res = await fetch(apiUrl('/api/admin/officers'), {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to register municipal officer');
+    return data;
+  },
+
+  async updateUserRole(userId: string, role: 'CITIZEN' | 'AUTHORITY' | 'ADMIN'): Promise<void> {
+    const res = await fetch(apiUrl(`/api/admin/users/${userId}/role`), {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ role }),
+    });
+    if (!res.ok) throw new Error('Failed to update role');
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    const res = await fetch(apiUrl(`/api/admin/users/${userId}`), {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to remove user');
+  },
+
   // Reports endpoints
   async getIssues(params?: {
     search?: string;

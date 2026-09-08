@@ -24,6 +24,11 @@ export const dataService = {
     postgres ? postgres.createUser(data) : Promise.resolve(citypulseDb.createUser(data)),
   findUserByEmail: (email: string) => postgres ? postgres.findUserByEmail(email) : Promise.resolve(citypulseDb.findUserByEmail(email)),
   findUserById: (id: string) => postgres ? postgres.findUserById(id) : Promise.resolve(citypulseDb.findUserById(id)),
+  getAllUsers: () => postgres ? postgres.getAllUsers() : Promise.resolve(citypulseDb.getAllUsers()),
+  updateUserRole: (id: string, role: 'CITIZEN' | 'AUTHORITY' | 'ADMIN') =>
+    postgres ? postgres.updateUserRole(id, role) : Promise.resolve(citypulseDb.updateUserRole(id, role)),
+  deleteUser: (id: string) =>
+    postgres ? postgres.deleteUser(id) : Promise.resolve(citypulseDb.deleteUser(id)),
   getAllReports: (filters?: ReportFilters) => postgres ? postgres.getAllReports(filters) : Promise.resolve(citypulseDb.getAllReports(filters)),
   getReportById: (id: string) => postgres ? postgres.getReportById(id) : Promise.resolve(citypulseDb.getReportById(id)),
   createReport: (data: {

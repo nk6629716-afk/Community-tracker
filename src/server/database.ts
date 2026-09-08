@@ -329,6 +329,29 @@ class CitypulseDatabase {
     return this.users.find((u) => u.id === id) || null;
   }
 
+  public getAllUsers(): UserRecord[] {
+    return [...this.users].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  public updateUserRole(id: string, role: 'CITIZEN' | 'AUTHORITY' | 'ADMIN'): UserRecord | null {
+    const user = this.users.find((u) => u.id === id);
+    if (!user) return null;
+    user.role = role;
+    user.updatedAt = new Date().toISOString();
+    this.save();
+    return user;
+  }
+
+  public deleteUser(id: string): boolean {
+    const idx = this.users.findIndex((u) => u.id === id);
+    if (idx === -1) return false;
+    this.users.splice(idx, 1);
+    this.save();
+    return true;
+  }
+
   // --- REPORT OPERATIONS ---
   public getAllReports(filters?: {
     category?: string;

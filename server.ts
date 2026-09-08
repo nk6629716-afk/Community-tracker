@@ -291,8 +291,125 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // ==========================================
-// REPORTS ROUTES (Section 16, 17, 18, 19, 20)
+// MASTER ADMIN & USER MANAGEMENT ROUTES
 // ==========================================
+
+// Middleware to enforce Admin / Authority access
+function requireAdminOrAuthority(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const currentUser = (req as any).user;
+  if (!currentUser) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
+  if (currentUser.role !== 'AUTHORITY' && currentUser.role !== 'ADMIN') {
+    return res.status(403).json({ error: 'Administrative privileges required' });
+  }
+  next();
+}
+
+// GET /api/admin/users - List all users
+app.get('/api/admin/users', requireAdminOrAuthority, async (req, res) => {
+  try {
+    const users = await dataService.getAllUsers();
+    const safeUsers = users.map((u: any) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      age: u.age,
+      area: u.area,
+      createdAt: u.createdAt || u.created_at,
+      updatedAt: u.updatedAt || u.updated_at,
+    }));
+    res.json(safeUsers);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to retrieve user list' });
+  }
+});
+
+// POST /api/admin/officers - Master Admin registers a new Municipal Officer directly
+app.post('/api/admin/officers', requireAdminOrAuthority, async (req, res) => {
+  try {
+    const { name, email, password, department, area, age } = req.body;
+
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Officer name, email, and password are required.' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    const existing = await dataService.findUserByEmail(email);
+    if (existing) {
+      return res.status(409).json({ error: 'An account with this email already exists.' });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const officer = await dataService.createUser({
+      email,
+      passwordHash,
+      name: name.trim(),
+      role: 'AUTHORITY',
+      age: age ? Number(age) : undefined,
+      area: (department ? `${department} - ${area || 'HQ'}` : area) || 'Municipal Ward',
+    });
+
+    res.status(201).json({
+      message: `Municipal Officer "${officer.name}" provisioned successfully`,
+      user: {
+        id: officer.id,
+        email: officer.email,
+        name: officer.name,
+        role: officer.role,
+        age: officer.age,
+        area: officer.area,
+        createdAt: officer.createdAt,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to register officer' });
+  }
+});
+
+// PATCH /api/admin/users/:id/role - Update user role
+app.patch('/api/admin/users/:id/role', requireAdminOrAuthority, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+
+    if (!role || !['CITIZEN', 'AUTHORITY', 'ADMIN'].includes(role)) {
+      return res.status(400).json({ error: 'Valid role (CITIZEN, AUTHORITY, ADMIN) is required' });
+    }
+
+    const updated = await dataService.updateUserRole(id, role);
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({
+      message: `User role successfully updated to ${role}`,
+      user: {
+        id: updated.id,
+        email: updated.email,
+        name: updated.name,
+        role: updated.role,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to update user role' });
+  }
+});
+
+// DELETE /api/admin/users/:id - Delete a user
+app.delete('/api/admin/users/:id', requireAdminOrAuthority, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await dataService.deleteUser(id);
+    res.json({ message: 'User removed successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to remove user' });
+  }
+});
 
 // Helper function to handle reports list
 async function handleGetReports(req: express.Request, res: express.Response) {

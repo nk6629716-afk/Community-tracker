@@ -113,6 +113,24 @@ export class PostgresCitypulseDatabase {
     return result.rows[0] ? mapUser(result.rows[0]) : null;
   }
 
+  async getAllUsers() {
+    const result = await pool.query('SELECT * FROM users ORDER BY created_at DESC');
+    return result.rows.map(mapUser);
+  }
+
+  async updateUserRole(id: string, role: UserRecord['role']) {
+    const result = await pool.query(
+      'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [role, id]
+    );
+    return result.rows[0] ? mapUser(result.rows[0]) : null;
+  }
+
+  async deleteUser(id: string) {
+    await pool.query('DELETE FROM users WHERE id = $1', [id]);
+    return true;
+  }
+
   async getAllReports(filters: ReportFilters = {}) {
     const conditions: string[] = [];
     const values: unknown[] = [];
