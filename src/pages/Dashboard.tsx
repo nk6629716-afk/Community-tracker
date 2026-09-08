@@ -1,5 +1,5 @@
-import React from 'react';
-import { PlusCircle, MapPin, Layers, ArrowRight, ShieldCheck, Radio, QrCode } from 'lucide-react';
+import React, { useState } from 'react';
+import { PlusCircle, MapPin, Layers, ArrowRight, ShieldCheck, Radio, QrCode, Search, Tag, Filter, X } from 'lucide-react';
 import { Issue, AnalyticsData } from '../types';
 import { HeroChain } from '../components/dashboard/HeroChain';
 import { StatsOverview } from '../components/dashboard/StatsOverview';
@@ -8,6 +8,7 @@ import { ActivityFeed } from '../components/dashboard/ActivityFeed';
 import { InteractiveMap } from '../components/map/InteractiveMap';
 import { IssueCard } from '../components/issues/IssueCard';
 import { Vector4, Vector9 } from '../components/common/DecorativeVectors';
+import { getTicketId } from '../utils/formatters';
 
 interface DashboardProps {
   issues: Issue[];
@@ -26,8 +27,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSelectIssue,
   onOpenAuth,
 }) => {
-  // Recent reports
-  const recentIssues = issues.slice(0, 6);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'reported' | 'in_progress' | 'resolved'>('all');
+
+  // Filtered search results
+  const searchResults = searchQuery.trim()
+    ? issues.filter((issue) => {
+        const query = searchQuery.trim().toLowerCase();
+        const ticketId = getTicketId(issue).toLowerCase();
+        const matchesQuery =
+          ticketId.includes(query) ||
+          issue.id.toLowerCase().includes(query) ||
+          issue.title.toLowerCase().includes(query) ||
+          issue.description.toLowerCase().includes(query) ||
+          issue.address.toLowerCase().includes(query) ||
+          issue.category.toLowerCase().includes(query);
+        const matchesStatus = selectedStatus === 'all' || issue.status === selectedStatus;
+        return matchesQuery && matchesStatus;
+      })
+    : [];
+
+  // Recent reports (filtered by status if selected)
+  const recentIssues = (selectedStatus === 'all' 
+    ? issues 
+    : issues.filter((i) => i.status === selectedStatus)
+  ).slice(0, 6);
 
   return (
     <div className="space-y-8 animate-fade-in pb-12">
@@ -38,6 +62,83 @@ export const Dashboard: React.FC<DashboardProps> = ({
         onNavigate={onNavigate}
         onOpenAuth={onOpenAuth}
       />
+
+      {/* COMPLAINT SEARCH & TICKET TRACKER BOX */}
+      <div className="glass-card rounded-3xl p-6 sm:p-8 border border-cyan-500/20 bg-gradient-to-r from-cyan-950/30 via-slate-900/60 to-violet-950/30 shadow-2xl">
+        <div className="max-w-3xl mx-auto space-y-4 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-bold">
+            <Search className="w-3.5 h-3.5 text-cyan-400" />
+            <span>Complaint Lookup & Ticket Tracking System</span>
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-white">
+            Find Any Complaint or Incident by Ticket ID
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-300">
+            Search by Ticket ID (e.g. <span className="font-mono text-cyan-300 font-bold">#CP-XXXX</span>), location, category, or title to check live resolution status.
+          </p>
+
+          {/* Search Input Box */}
+          <div className="relative mt-2">
+            <Search className="w-5 h-5 text-cyan-400 absolute left-4 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search Ticket ID (#CP-...), keyword, address, or issue category..."
+              className="w-full pl-12 pr-12 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-cyan-400/40 focus:border-cyan-400 text-white placeholder-slate-400 text-sm sm:text-base outline-none transition-all shadow-inner"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Filter Chips */}
+          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            {(['all', 'reported', 'in_progress', 'resolved'] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setSelectedStatus(st)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                  selectedStatus === st
+                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-md'
+                    : 'bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10'
+                }`}
+              >
+                {st === 'all' ? 'All Complaints' : st === 'reported' ? 'Submitted / Reported' : st === 'in_progress' ? 'Under Process' : 'Resolved / Done'}
+              </button>
+            ))}
+          </div>
+
+          {/* Active Search Results Overlay */}
+          {searchQuery.trim() && (
+            <div className="mt-6 text-left space-y-3 pt-4 border-t border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-cyan-300">
+                  Found {searchResults.length} matching complaint{searchResults.length === 1 ? '' : 's'}
+                </span>
+                <span className="text-[11px] text-slate-400">Click any card to open detailed view</span>
+              </div>
+
+              {searchResults.length === 0 ? (
+                <div className="p-6 text-center text-slate-400 text-xs bg-white/5 rounded-2xl border border-white/10">
+                  No complaints found matching "<span className="text-white font-semibold">{searchQuery}</span>". Try searching by another keyword or ticket ID.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {searchResults.slice(0, 6).map((issue) => (
+                    <IssueCard key={issue.id} issue={issue} onClick={onSelectIssue} />
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {/* 4 Core Metrics Row (Section immediately following Hero scroll sequence) */}
       <div id="dashboard-metrics" className="scroll-mt-24">

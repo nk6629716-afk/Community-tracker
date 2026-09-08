@@ -49,6 +49,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [name, setName] = useState('');
   const [age, setAge] = useState('');
   const [area, setArea] = useState('');
+  const [officerCode, setOfficerCode] = useState('');
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -71,8 +72,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       // Autofill helper for seamless testing
       if (effRole === 'AUTHORITY') {
-        setEmail('authority@citypulse.gov');
-        setPassword('authority123');
+        setEmail('Admin');
+        setPassword('The one who created us');
       } else {
         setEmail('citizen@citypulse.gov');
         setPassword('citizen123');
@@ -118,8 +119,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMessage(null);
     setExpression('neutral');
     if (role === 'AUTHORITY') {
-      setEmail('authority@citypulse.gov');
-      setPassword('authority123');
+      setEmail('Admin');
+      setPassword('The one who created us');
     } else {
       setEmail('citizen@citypulse.gov');
       setPassword('citizen123');
@@ -137,6 +138,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           email,
           password,
           name,
+          role: selectedRole,
+          officerCode: selectedRole === 'AUTHORITY' ? officerCode : undefined,
           age: age ? Number(age) : undefined,
           area: area || undefined,
         });
@@ -261,36 +264,34 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
 
-        {/* TWO LOGIN OPTIONS (Section 7) */}
-        {mode === 'login' && (
-          <div className="grid grid-cols-2 gap-2.5 mb-6 p-1 bg-white/5 rounded-2xl border border-white/10">
-            <button
-              type="button"
-              onClick={() => handleSelectRole('CITIZEN')}
-              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                selectedRole === 'CITIZEN'
-                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <User className="w-3.5 h-3.5" />
-              <span>Login as Citizen</span>
-            </button>
+        {/* ROLE SELECTION FOR LOGIN OR SIGNUP */}
+        <div className="grid grid-cols-2 gap-2.5 mb-6 p-1 bg-white/5 rounded-2xl border border-white/10">
+          <button
+            type="button"
+            onClick={() => handleSelectRole('CITIZEN')}
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              selectedRole === 'CITIZEN'
+                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>{mode === 'login' ? 'Citizen Login' : 'Citizen Sign Up'}</span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => handleSelectRole('AUTHORITY')}
-              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                selectedRole === 'AUTHORITY'
-                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Login as Authority</span>
-            </button>
-          </div>
-        )}
+          <button
+            type="button"
+            onClick={() => handleSelectRole('AUTHORITY')}
+            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              selectedRole === 'AUTHORITY'
+                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>{mode === 'login' ? 'Officer / Admin' : 'Municipal Officer'}</span>
+          </button>
+        </div>
 
         {/* Error Notification */}
         {errorMessage && (
@@ -304,6 +305,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-4">
           {mode === 'signup' && (
             <>
+              {selectedRole === 'AUTHORITY' && (
+                <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-2">
+                  <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-bold">
+                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                    <span>Officer Developer Authorization Code</span>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-cyan-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      value={officerCode}
+                      onChange={(e) => setOfficerCode(e.target.value)}
+                      placeholder='Enter code (e.g. "Municipal Officer")'
+                      className="glass-input w-full pl-10 pr-4 py-2 rounded-xl text-sm border-cyan-400/40 focus:border-cyan-400"
+                    />
+                  </div>
+                  <p className="text-[11px] text-cyan-200/80">
+                    Required for Municipal Authority badge and Administrative control panel.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
                   Full Name
@@ -315,7 +339,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g., Alex Rivera"
+                    placeholder={selectedRole === 'AUTHORITY' ? "Officer Alex Rivera" : "Alex Rivera"}
                     className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
                   />
                 </div>
@@ -342,7 +366,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Neighborhood / Area
+                    {selectedRole === 'AUTHORITY' ? 'Department / Ward' : 'Neighborhood / Area'}
                   </label>
                   <div className="relative">
                     <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -350,7 +374,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       type="text"
                       value={area}
                       onChange={(e) => setArea(e.target.value)}
-                      placeholder="North Campus"
+                      placeholder={selectedRole === 'AUTHORITY' ? "Ward 7 - Sanitation" : "North Campus"}
                       className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
                     />
                   </div>
@@ -361,16 +385,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <div>
             <label className="block text-xs font-bold text-slate-300 mb-1">
-              Email Address
+              {mode === 'login' ? 'Email or Username' : 'Email Address'}
             </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@citypulse.gov"
+                placeholder={selectedRole === 'AUTHORITY' ? "Admin (or officer@citypulse.gov)" : "citizen@citypulse.gov"}
                 className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
               />
             </div>
@@ -391,10 +415,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
               />
             </div>
-            {mode === 'login' && (
-              <span className="block text-[11px] text-slate-500 mt-1">
-                Hint: Use default credentials for fast evaluation
-              </span>
+            {mode === 'login' && selectedRole === 'AUTHORITY' && (
+              <div className="mt-2 p-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 text-[11px] text-cyan-300 flex items-center justify-between">
+                <span>🔑 Master Access: <b>Admin</b> / <b>The one who created us</b></span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmail('Admin');
+                    setPassword('The one who created us');
+                  }}
+                  className="px-2 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-200 font-semibold cursor-pointer"
+                >
+                  Quick Fill
+                </button>
+              </div>
             )}
           </div>
 
@@ -407,12 +441,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <span>Authenticating...</span>
             ) : mode === 'login' ? (
               <>
-                <span>Continue as {selectedRole === 'CITIZEN' ? 'Citizen' : 'Authority'}</span>
+                <span>Continue as {selectedRole === 'CITIZEN' ? 'Citizen' : 'Municipal Officer'}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             ) : (
               <>
-                <span>Complete Citizen Registration</span>
+                <span>
+                  {selectedRole === 'AUTHORITY' 
+                    ? 'Verify & Register Municipal Officer' 
+                    : 'Complete Citizen Registration'}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

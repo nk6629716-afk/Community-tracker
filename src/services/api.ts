@@ -87,6 +87,8 @@ export const api = {
     email: string;
     password: string;
     name: string;
+    role?: 'CITIZEN' | 'AUTHORITY' | 'ADMIN';
+    officerCode?: string;
     age?: number;
     area?: string;
   }): Promise<AuthResponse> {

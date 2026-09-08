@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, SlidersHorizontal, CheckCircle2, RotateCcw } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, CheckCircle2, RotateCcw, Tag } from 'lucide-react';
 import { Issue } from '../types';
 import { IssueCard } from '../components/issues/IssueCard';
 import { Vector7 } from '../components/common/DecorativeVectors';
+import { getTicketId } from '../utils/formatters';
 
 interface ReportsProps {
   issues: Issue[];
@@ -53,12 +54,16 @@ export const Reports: React.FC<ReportsProps> = ({
       const matchCat = categoryFilter === 'all' || iss.category === categoryFilter;
       const matchStatus = statusFilter === 'all' || iss.status === statusFilter;
       const matchSev = severityFilter === 'all' || iss.severity === severityFilter;
+      const ticketId = getTicketId(iss).toLowerCase();
+      const query = search.trim().toLowerCase();
       const matchQuery =
-        !search ||
-        iss.title.toLowerCase().includes(search.toLowerCase()) ||
-        iss.description.toLowerCase().includes(search.toLowerCase()) ||
-        iss.address.toLowerCase().includes(search.toLowerCase()) ||
-        iss.category.toLowerCase().includes(search.toLowerCase());
+        !query ||
+        ticketId.includes(query) ||
+        iss.id.toLowerCase().includes(query) ||
+        iss.title.toLowerCase().includes(query) ||
+        iss.description.toLowerCase().includes(query) ||
+        iss.address.toLowerCase().includes(query) ||
+        iss.category.toLowerCase().includes(query);
 
       return matchCat && matchStatus && matchSev && matchQuery;
     });

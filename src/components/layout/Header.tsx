@@ -42,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'reports', label: 'Feed', icon: FileText },
     { id: 'analytics', label: 'Stats', icon: BarChart3 },
     { id: 'citizen', label: 'Citizen Hub', icon: User },
-    { id: 'authority', label: 'Command Portal', icon: ShieldAlert },
+    { id: 'authority', label: 'Admin Panel', icon: ShieldAlert },
   ];
 
   return (

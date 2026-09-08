@@ -34,6 +34,7 @@ export interface IssueUpdate {
 
 export interface Issue {
   id: string;
+  ticket_id?: string;
   title: string;
   description: string;
   category: IssueCategory;

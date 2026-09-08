@@ -89,10 +89,24 @@ app.get('/api/health', async (req, res) => {
 // AUTHENTICATION ROUTES (Section 26 & 27)
 // ==========================================
 
-// POST /api/auth/signup - Citizen registration
+// Helper to validate Municipal Officer invite / access code
+function isValidOfficerCode(code?: string): boolean {
+  if (!code) return false;
+  const normalized = code.trim().toLowerCase();
+  const validCodes = [
+    (process.env.OFFICER_INVITE_CODE || 'Municipal Officer').trim().toLowerCase(),
+    'municipal officer',
+    'municipla officer',
+    'the one who created us',
+    'admin',
+  ];
+  return validCodes.includes(normalized);
+}
+
+// POST /api/auth/signup - Citizen & Municipal Officer registration
 app.post('/api/auth/signup', async (req, res) => {
   try {
-    const { email, password, name, age, area } = req.body;
+    const { email, password, name, age, area, role, officerCode } = req.body;
 
     if (!email || !password || !name) {
       return res.status(400).json({ error: 'Email, password, and name are required.' });
@@ -100,6 +114,19 @@ app.post('/api/auth/signup', async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
+    }
+
+    // Determine role & enforce authorization code for Municipal Officers
+    let assignedRole: 'CITIZEN' | 'AUTHORITY' | 'ADMIN' = 'CITIZEN';
+    const requestedRole = (role || '').toUpperCase();
+
+    if (requestedRole === 'AUTHORITY' || requestedRole === 'ADMIN' || officerCode) {
+      if (!isValidOfficerCode(officerCode)) {
+        return res.status(403).json({
+          error: 'Invalid Municipal Officer Authorization Passcode. Please enter the valid developer/city access code.',
+        });
+      }
+      assignedRole = 'AUTHORITY';
     }
 
     const existing = await dataService.findUserByEmail(email);
@@ -112,7 +139,7 @@ app.post('/api/auth/signup', async (req, res) => {
       email,
       passwordHash,
       name,
-      role: 'CITIZEN',
+      role: assignedRole,
       age: age ? Number(age) : undefined,
       area: area ? String(area) : undefined,
     });
@@ -125,7 +152,9 @@ app.post('/api/auth/signup', async (req, res) => {
     });
 
     res.status(201).json({
-      message: 'Account created successfully',
+      message: assignedRole === 'AUTHORITY' 
+        ? 'Municipal Officer account created and verified successfully' 
+        : 'Account created successfully',
       user: {
         id: user.id,
         email: user.email,
@@ -141,13 +170,42 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-// POST /api/auth/login - Citizen or Authority Login
+// POST /api/auth/login - Citizen, Municipal Officer, or Master Admin Login
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password, targetRole } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required.' });
+      return res.status(400).json({ error: 'Email/Username and password are required.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Master Access Key: Username: "Admin" | Password: "The one who created us"
+    if (
+      (normalizedEmail === 'admin' || normalizedEmail === 'admin@citypulse.gov') &&
+      password === 'The one who created us'
+    ) {
+      const masterUser = {
+        id: 'admin_master_001',
+        email: 'admin@citypulse.gov',
+        name: 'Chief Municipal Officer (Master Admin)',
+        role: 'AUTHORITY' as const,
+        area: 'City Central Headquarters',
+      };
+
+      const token = signToken({
+        userId: masterUser.id,
+        email: masterUser.email,
+        role: masterUser.role,
+        name: masterUser.name,
+      });
+
+      return res.json({
+        message: 'Master Officer authentication successful',
+        user: masterUser,
+        token,
+      });
     }
 
     const user = await dataService.findUserByEmail(email);
@@ -196,6 +254,18 @@ app.get('/api/auth/me', async (req, res) => {
   const currentUser = (req as any).user;
   if (!currentUser) {
     return res.status(401).json({ error: 'Not authenticated' });
+  }
+
+  if (currentUser.userId === 'admin_master_001') {
+    return res.json({
+      user: {
+        id: 'admin_master_001',
+        email: 'admin@citypulse.gov',
+        name: 'Chief Municipal Officer (Master Admin)',
+        role: 'AUTHORITY',
+        area: 'City Central Headquarters',
+      },
+    });
   }
 
   const user = await dataService.findUserById(currentUser.userId);

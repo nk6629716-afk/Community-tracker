@@ -16,13 +16,15 @@ import {
   SlidersHorizontal,
   Layers,
   ChevronRight,
-  Eye
+  Eye,
+  Tag,
+  CheckSquare
 } from 'lucide-react';
 import { Issue, IssueStatus } from '../../types';
 import { AuthUser, api } from '../../services/api';
 import { InteractiveMap } from '../map/InteractiveMap';
 import { CATEGORY_LABELS, SEVERITY_INFO, STATUS_INFO } from '../../utils/priority';
-import { formatDateTime } from '../../utils/formatters';
+import { formatDateTime, getTicketId } from '../../utils/formatters';
 
 interface AuthorityDashboardProps {
   user: AuthUser;
@@ -49,11 +51,16 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
 
   // Filter issues
   const filteredIssues = issues.filter((issue) => {
+    const q = searchQuery.trim().toLowerCase();
+    const ticket = getTicketId(issue).toLowerCase();
     const matchesSearch =
-      issue.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      issue.id.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      ticket.includes(q) ||
+      issue.title.toLowerCase().includes(q) ||
+      issue.description.toLowerCase().includes(q) ||
+      issue.address.toLowerCase().includes(q) ||
+      issue.id.toLowerCase().includes(q) ||
+      issue.category.toLowerCase().includes(q);
 
     const matchesStatus = selectedStatus === 'all' || issue.status === selectedStatus;
     const matchesCategory = selectedCategory === 'all' || issue.category === selectedCategory;
@@ -302,8 +309,9 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                       <div className="flex items-start justify-between gap-3">
                         <div className="space-y-1 flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-400/20">
-                              #{issue.id.slice(0, 8)}
+                            <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-0.5 rounded-lg border border-cyan-400/30 flex items-center gap-1">
+                              <Tag className="w-3 h-3 text-cyan-400" />
+                              <span>{getTicketId(issue)}</span>
                             </span>
                             <span
                               className="text-xs font-semibold px-2.5 py-0.5 rounded-full border"
@@ -363,8 +371,9 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               {/* Header Details */}
               <div>
                 <div className="flex items-center justify-between gap-2 mb-2">
-                  <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded border border-cyan-400/20">
-                    ID: {activeIssue.id}
+                  <span className="text-xs font-mono font-bold text-cyan-300 bg-cyan-500/15 px-2.5 py-1 rounded-lg border border-cyan-400/30 flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Ticket: {getTicketId(activeIssue)}</span>
                   </span>
                   <span className="text-xs text-slate-400">
                     {formatDateTime(activeIssue.created_at)}
@@ -382,10 +391,10 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               </div>
 
               {/* Photo preview if present */}
-              {activeIssue.photos && activeIssue.photos.length > 0 && (
+              {(activeIssue.photo_url || ((activeIssue as any).photos && (activeIssue as any).photos.length > 0)) && (
                 <div className="rounded-2xl overflow-hidden border border-white/10 bg-black/40 h-44 relative">
                   <img
-                    src={activeIssue.photos[0]}
+                    src={activeIssue.photo_url || (activeIssue as any).photos[0]}
                     alt="Evidence photograph"
                     className="w-full h-full object-cover"
                   />
@@ -406,17 +415,14 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               </div>
 
               {/* AI Auto-Triage Assessment */}
-              {activeIssue.ai_analysis && (
+              {activeIssue.ai_summary && (
                 <div className="p-4 rounded-2xl bg-violet-500/10 border border-violet-500/20 space-y-2">
                   <div className="flex items-center gap-2 text-violet-300 text-xs font-bold">
                     <Sparkles className="w-4 h-4 text-violet-400" />
                     <span>Automated AI Assessment</span>
                   </div>
                   <p className="text-xs text-slate-300 leading-relaxed">
-                    {activeIssue.ai_analysis.suggested_action ||
-                      `Categorized under ${activeIssue.category.toUpperCase()} with confidence score ${Math.round(
-                        (activeIssue.ai_analysis.confidence || 0.9) * 100
-                      )}%. Priority marked as ${activeIssue.severity}.`}
+                    {activeIssue.ai_summary}
                   </p>
                 </div>
               )}
@@ -425,10 +431,10 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               <div className="p-5 rounded-2xl bg-cyan-500/5 border border-cyan-400/20 space-y-4">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-cyan-300 uppercase tracking-wider">
-                    Dispatch & Status Transition
+                    Administrative Action & Status Controls
                   </span>
                   <span className="text-xs text-slate-400">
-                    Live broadcast via Socket.IO
+                    Live broadcast via WebSockets
                   </span>
                 </div>
 
@@ -439,12 +445,12 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                 )}
 
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1.5">
-                    Authority Dispatch Note / Work Order Comment
+                  <label className="text-xs text-slate-300 font-semibold block mb-1.5">
+                    Officer Resolution Notes / Work Order Remarks
                   </label>
                   <textarea
                     rows={2}
-                    placeholder="e.g. Work crew unit 4 dispatched for immediate drainage clearance."
+                    placeholder="e.g. Work crew unit 4 dispatched for immediate clearance."
                     value={statusComment}
                     onChange={(e) => setStatusComment(e.target.value)}
                     className="w-full p-3 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-cyan-400/50 resize-none"
@@ -455,40 +461,40 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                   <button
                     disabled={isUpdating || activeIssue.status === 'reported'}
                     onClick={() => handleUpdateStatus(activeIssue, 'reported')}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`p-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeIssue.status === 'reported'
                         ? 'bg-amber-500/20 border-amber-400/40 text-amber-300'
                         : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
                     }`}
                   >
                     <Clock className="w-3.5 h-3.5" />
-                    <span>In Triage</span>
+                    <span>Mark Submitted</span>
                   </button>
 
                   <button
                     disabled={isUpdating || activeIssue.status === 'in_progress'}
                     onClick={() => handleUpdateStatus(activeIssue, 'in_progress')}
-                    className={`p-2.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                    className={`p-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-1.5 ${
                       activeIssue.status === 'in_progress'
-                        ? 'bg-cyan-500/20 border-cyan-400/40 text-cyan-300'
-                        : 'bg-white/5 hover:bg-white/10 border-white/10 text-slate-300'
+                        ? 'bg-cyan-500/25 border-cyan-400/60 text-cyan-200 shadow-md'
+                        : 'bg-cyan-500/10 hover:bg-cyan-500/20 border-cyan-500/30 text-cyan-300'
                     }`}
                   >
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    <span>Dispatch (In Progress)</span>
+                    <AlertTriangle className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>Mark Under Process</span>
                   </button>
 
                   <button
                     disabled={isUpdating || activeIssue.status === 'resolved'}
                     onClick={() => handleUpdateStatus(activeIssue, 'resolved')}
-                    className={`col-span-2 p-3 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-2 ${
+                    className={`col-span-2 p-3.5 rounded-xl text-xs font-bold border transition cursor-pointer flex items-center justify-center gap-2 ${
                       activeIssue.status === 'resolved'
-                        ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300'
-                        : 'bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30 text-emerald-300'
+                        ? 'bg-emerald-500/25 border-emerald-400/60 text-emerald-200'
+                        : 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/40 text-emerald-300'
                     }`}
                   >
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                    <span>{isUpdating ? 'Broadcasting...' : 'Mark Incident Resolved & Close Signal'}</span>
+                    <span>{isUpdating ? 'Updating Status...' : 'Mark Complaint Done / Resolved'}</span>
                   </button>
                 </div>
               </div>

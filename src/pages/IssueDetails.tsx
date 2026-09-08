@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Sparkles, AlertTriangle, ShieldCheck, Share2, Check, ExternalLink } from 'lucide-react';
+import { ArrowLeft, MapPin, Sparkles, AlertTriangle, ShieldCheck, Share2, Check, ExternalLink, Tag, Copy } from 'lucide-react';
 import { Issue, IssueStatus } from '../types';
 import { CATEGORY_LABELS, SEVERITY_INFO, getPriorityBadge } from '../utils/priority';
-import { formatDateTime } from '../utils/formatters';
+import { formatDateTime, getTicketId } from '../utils/formatters';
 import { UpvoteButton } from '../components/issues/UpvoteButton';
 import { StatusTimeline } from '../components/issues/StatusTimeline';
 import { InteractiveMap } from '../components/map/InteractiveMap';
@@ -24,10 +24,12 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
 }) => {
   const [currentIssue, setCurrentIssue] = useState<Issue>(issue);
   const [copiedShare, setCopiedShare] = useState(false);
+  const [copiedTicket, setCopiedTicket] = useState(false);
 
   const catLabel = CATEGORY_LABELS[currentIssue.category] || currentIssue.category;
   const sevInfo = SEVERITY_INFO[currentIssue.severity];
   const priorityBadge = getPriorityBadge(currentIssue.priority_score);
+  const ticketId = getTicketId(currentIssue);
 
   const handleUpdateStatus = async (newStatus: IssueStatus, comment: string) => {
     try {
@@ -47,6 +49,12 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
     setTimeout(() => setCopiedShare(false), 2000);
   };
 
+  const handleCopyTicket = () => {
+    navigator.clipboard.writeText(ticketId);
+    setCopiedTicket(true);
+    setTimeout(() => setCopiedTicket(false), 2000);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
       {/* Back Button and Action Bar */}
@@ -61,8 +69,25 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handleCopyTicket}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 border border-cyan-200 hover:bg-cyan-100 text-cyan-800 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+          >
+            {copiedTicket ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Ticket Copied!</span>
+              </>
+            ) : (
+              <>
+                <Tag className="w-3.5 h-3.5 text-cyan-600" />
+                <span>Ticket: {ticketId}</span>
+              </>
+            )}
+          </button>
+
+          <button
             onClick={handleShare}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E4E7EC] hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#E4E7EC] hover:bg-slate-50 text-slate-700 rounded-lg text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
           >
             {copiedShare ? (
               <>
@@ -83,9 +108,14 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
       <div className="bg-white rounded-2xl border border-[#E4E7EC] p-6 sm:p-8 shadow-xs space-y-6">
         {/* Category & Status Badges */}
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs font-bold tracking-wider uppercase px-3 py-1 rounded-md bg-[#123B5D] text-white">
-            {catLabel}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold tracking-wider uppercase px-3 py-1 rounded-md bg-[#123B5D] text-white">
+              {catLabel}
+            </span>
+            <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-md bg-slate-900 text-cyan-300 border border-slate-700">
+              {ticketId}
+            </span>
+          </div>
 
           <div className="flex items-center gap-2">
             <span className={`text-xs font-bold px-2.5 py-1 rounded-md border ${sevInfo.border} ${sevInfo.bg} ${sevInfo.color}`}>

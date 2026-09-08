@@ -36,3 +36,19 @@ export function formatDateTime(isoString: string): string {
     return isoString;
   }
 }
+
+export function getTicketId(issue: { id?: string; ticket_id?: string } | string | undefined | null): string {
+  if (!issue) return '#CP-0000';
+  if (typeof issue === 'string') {
+    const clean = issue.replace(/[^a-zA-Z0-9]/g, '');
+    return `#CP-${clean.substring(0, 6).toUpperCase() || '0000'}`;
+  }
+  if (issue.ticket_id) {
+    return issue.ticket_id.startsWith('#') ? issue.ticket_id : `#${issue.ticket_id}`;
+  }
+  if (issue.id) {
+    const clean = issue.id.replace(/[^a-zA-Z0-9]/g, '');
+    return `#CP-${clean.substring(0, 6).toUpperCase() || '0000'}`;
+  }
+  return '#CP-0000';
+}
