@@ -1,5 +1,23 @@
-import React, { useState } from 'react';
-import { PlusCircle, MapPin, Layers, ArrowRight, ShieldCheck, Radio, QrCode, Search, Tag, Filter, X } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { 
+  PlusCircle, 
+  MapPin, 
+  Layers, 
+  ArrowRight, 
+  ShieldCheck, 
+  Radio, 
+  QrCode, 
+  Search, 
+  Tag, 
+  Filter, 
+  X, 
+  Navigation, 
+  LocateFixed, 
+  Crosshair, 
+  Compass, 
+  AlertTriangle,
+  Sparkles
+} from 'lucide-react';
 import { Issue, AnalyticsData } from '../types';
 import { HeroChain } from '../components/dashboard/HeroChain';
 import { StatsOverview } from '../components/dashboard/StatsOverview';
@@ -9,6 +27,8 @@ import { InteractiveMap } from '../components/map/InteractiveMap';
 import { IssueCard } from '../components/issues/IssueCard';
 import { Vector4, Vector9 } from '../components/common/DecorativeVectors';
 import { getTicketId } from '../utils/formatters';
+import { useUserLocation } from '../hooks/useUserLocation';
+import { calculateDistanceKm, formatDistance } from '../utils/geo';
 
 interface DashboardProps {
   issues: Issue[];
@@ -29,6 +49,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'reported' | 'in_progress' | 'resolved'>('all');
+  const [proximityRadius, setProximityRadius] = useState<number | null>(5); // Default: 5 km radius
+
+  // GPS Device Location
+  const {
+    coords: userCoords,
+    status: gpsStatus,
+    placeName: userPlaceName,
+    isLocating,
+    requestLocation,
+  } = useUserLocation();
+
+  // Compute distance and sort issues by proximity to user
+  const issuesWithDistance = useMemo(() => {
+    return issues.map((issue) => {
+      const distanceKm =
+        userCoords && typeof userCoords.lat === 'number'
+          ? calculateDistanceKm(userCoords.lat, userCoords.lng, issue.latitude, issue.longitude)
+          : null;
+      return {
+        ...issue,
+        distanceKm,
+      };
+    });
+  }, [issues, userCoords]);
+
+  // Issues filtered by proximity radius for map and nearby widget
+  const nearbyIssues = useMemo(() => {
+    let list = [...issuesWithDistance];
+    if (userCoords && proximityRadius !== null) {
+      list = list.filter((i) => i.distanceKm !== null && i.distanceKm <= proximityRadius);
+    }
+    // Sort closest first
+    if (userCoords) {
+      list.sort((a, b) => {
+        if (a.distanceKm === null) return 1;
+        if (b.distanceKm === null) return -1;
+        return a.distanceKm - b.distanceKm;
+      });
+    }
+    return list;
+  }, [issuesWithDistance, userCoords, proximityRadius]);
 
   // Filtered search results
   const searchResults = searchQuery.trim()
@@ -90,7 +151,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -131,7 +192,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {searchResults.slice(0, 6).map((issue) => (
-                    <IssueCard key={issue.id} issue={issue} onClick={onSelectIssue} />
+                    <IssueCard 
+                      key={issue.id} 
+                      issue={issue} 
+                      onClick={onSelectIssue}
+                      userLocation={userCoords}
+                    />
                   ))}
                 </div>
               )}
@@ -140,71 +206,213 @@ export const Dashboard: React.FC<DashboardProps> = ({
         </div>
       </div>
 
-      {/* 4 Core Metrics Row (Section immediately following Hero scroll sequence) */}
+      {/* 4 Core Metrics Row */}
       <div id="dashboard-metrics" className="scroll-mt-24">
         <StatsOverview analytics={analytics} isLoading={isLoading} />
       </div>
 
-      {/* Main Map & Intelligence Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Prominent Live Map (2 cols) */}
-        <div className="lg:col-span-2 glass-card rounded-3xl border border-white/10 p-6 shadow-xl space-y-4">
-          <div className="flex items-center justify-between">
+      {/* ======================================================== */}
+      {/* GPS LIVE COMMUNITY RADAR & HOMESCREEN MAP SECTION */}
+      {/* ======================================================== */}
+      <div className="space-y-4">
+        {/* GPS Neighborhood Telemetry Banner */}
+        <div className="glass-card rounded-2xl p-4 sm:p-5 border border-cyan-500/30 bg-gradient-to-r from-slate-950/80 via-slate-900/90 to-cyan-950/40 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="relative w-10 h-10 rounded-2xl bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center shrink-0">
+              <LocateFixed className={`w-5 h-5 text-cyan-400 ${isLocating ? 'animate-spin' : ''}`} />
+              {userCoords && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-cyan-400 animate-ping" />
+              )}
+            </div>
             <div>
               <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-cyan-400" />
-                <h2 className="font-bold text-base text-white">
-                  Live Community Incident Map
-                </h2>
+                <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
+                  {userCoords ? '📍 Device GPS Active' : '📍 Location Telemetry'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 font-mono">
+                  {nearbyIssues.length} nearby problem{nearbyIssues.length === 1 ? '' : 's'}
+                </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Real-time geospatial signals color-coded by AI-evaluated severity & status
+              <p className="text-sm font-bold text-white truncate max-w-md mt-0.5">
+                {userPlaceName || 'Detecting neighborhood via device GPS...'}
               </p>
             </div>
-            <button
-              onClick={() => onNavigate('map')}
-              className="text-xs font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1 transition"
-            >
-              Expand Map <ArrowRight className="w-3.5 h-3.5" />
-            </button>
           </div>
 
-          <div className="relative isolate rounded-2xl overflow-hidden border border-white/10">
-            <InteractiveMap
-              issues={issues}
-              onSelectIssue={onSelectIssue}
-              className="h-[430px] w-full"
+          {/* Proximity Radius Controls & GPS Refresh */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
+              <Compass className="w-3.5 h-3.5 text-cyan-400" /> Radius:
+            </span>
+            {([
+              { label: '< 1 km', value: 1 },
+              { label: '< 5 km', value: 5 },
+              { label: '< 15 km', value: 15 },
+              { label: 'All City', value: null },
+            ] as const).map((opt) => {
+              const isSelected = proximityRadius === opt.value;
+              return (
+                <button
+                  key={opt.label}
+                  onClick={() => setProximityRadius(opt.value)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+
+            <button
+              onClick={() => requestLocation(true)}
+              disabled={isLocating}
+              className="ml-1 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              title="Refresh GPS Coordinates"
+            >
+              <Navigation className={`w-3.5 h-3.5 text-cyan-400 ${isLocating ? 'animate-spin' : ''}`} />
+              <span>{isLocating ? 'Locating...' : 'Refresh GPS'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Live Map and Intelligence Split Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Prominent Live GPS Interactive Map (2 cols) */}
+          <div className="lg:col-span-2 glass-card rounded-3xl border border-white/10 p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-cyan-400" />
+                  <h2 className="font-bold text-base text-white">
+                    Live Community Incident Map
+                  </h2>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Showing {proximityRadius ? `issues within ${proximityRadius} km of your device` : 'all citywide issues'}
+                </p>
+              </div>
+              <button
+                onClick={() => onNavigate('map')}
+                className="text-xs font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1 transition cursor-pointer"
+              >
+                Expand Full Map <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            <div className="relative isolate rounded-2xl overflow-hidden border border-white/10">
+              <InteractiveMap
+                issues={nearbyIssues}
+                onSelectIssue={onSelectIssue}
+                className="h-[440px] w-full"
+                userLocation={userCoords}
+                proximityRadiusKm={proximityRadius}
+                onLocateMe={() => requestLocation(true)}
+              />
+            </div>
+          </div>
+
+          {/* Live Activity Stream & Quick QR (1 col) */}
+          <div className="space-y-6">
+            <ActivityFeed
+              activities={analytics?.recent_activity || []}
+              onSelectIssueId={(id) => onNavigate('reports', id)}
             />
+
+            {/* Quick link to QR Codes */}
+            <div className="glass-card rounded-2xl p-5 border border-cyan-500/20 bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-violet-950/40 relative overflow-hidden group">
+              <div className="absolute -right-3 -bottom-3 w-24 h-24 opacity-15 text-cyan-300 pointer-events-none">
+                <Vector4 className="w-full h-full" />
+              </div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <QrCode className="w-4 h-4 text-cyan-400" />
+                <h4 className="font-bold text-sm text-white">Civic QR Stations</h4>
+              </div>
+              <p className="text-xs text-slate-300 mb-3 leading-relaxed">
+                Printable QR codes for bus stops, campus gates, and markets to enable instant GPS citizen reporting.
+              </p>
+              <button
+                onClick={() => onNavigate('qr')}
+                className="w-full py-2.5 rounded-xl btn-glass-secondary text-white text-xs font-bold transition-all shadow-md cursor-pointer text-center"
+              >
+                Generate Civic QR Codes &rarr;
+              </button>
+            </div>
           </div>
         </div>
+      </div>
 
-        {/* Live Activity Stream (1 col) */}
-        <div className="space-y-6">
-          <ActivityFeed
-            activities={analytics?.recent_activity || []}
-            onSelectIssueId={(id) => onNavigate('reports', id)}
-          />
-
-          {/* Quick link to QR Codes */}
-          <div className="glass-card rounded-2xl p-5 border border-cyan-500/20 bg-gradient-to-br from-cyan-950/40 via-slate-900/60 to-violet-950/40 relative overflow-hidden group">
-            <div className="absolute -right-3 -bottom-3 w-24 h-24 opacity-15 text-cyan-300 pointer-events-none">
-              <Vector4 className="w-full h-full" />
+      {/* ======================================================== */}
+      {/* PROBLEMS AROUND YOU (NEIGHBORHOOD PROXIMITY SPOTLIGHT) */}
+      {/* ======================================================== */}
+      <div className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div className="flex items-center gap-2">
+              <Navigation className="w-4 h-4 text-cyan-400" />
+              <h2 className="text-lg font-bold text-white">
+                Problems Around You
+              </h2>
+              {userCoords && (
+                <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-bold border border-cyan-400/30">
+                  Sorted by GPS Proximity
+                </span>
+              )}
             </div>
-            <div className="flex items-center gap-2 mb-1.5">
-              <QrCode className="w-4 h-4 text-cyan-400" />
-              <h4 className="font-bold text-sm text-white">Civic QR Stations</h4>
-            </div>
-            <p className="text-xs text-slate-300 mb-3 leading-relaxed">
-              Printable QR codes for bus stops, campus gates, and markets to enable instant GPS citizen reporting.
+            <p className="text-xs text-slate-400 mt-0.5">
+              Civic issues ordered from closest to furthest based on your current device location
             </p>
-            <button
-              onClick={() => onNavigate('qr')}
-              className="w-full py-2.5 rounded-xl btn-glass-secondary text-white text-xs font-bold transition-all shadow-md cursor-pointer text-center"
-            >
-              Generate Civic QR Codes &rarr;
-            </button>
           </div>
+
+          <button
+            onClick={() => onNavigate('report')}
+            className="btn-glass-primary px-4 py-2 rounded-xl text-xs font-bold text-white flex items-center gap-1.5 self-start sm:self-center cursor-pointer"
+          >
+            <PlusCircle className="w-3.5 h-3.5 text-cyan-300" />
+            <span>Report Problem Here</span>
+          </button>
         </div>
+
+        {nearbyIssues.length === 0 ? (
+          <div className="glass-card rounded-3xl p-8 text-center border border-white/10 space-y-3">
+            <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 flex items-center justify-center mx-auto">
+              <Sparkles className="w-6 h-6" />
+            </div>
+            <h3 className="font-bold text-base text-white">
+              No Reported Issues Within {proximityRadius ? `${proximityRadius} km` : 'Your Area'}
+            </h3>
+            <p className="text-xs text-slate-400 max-w-md mx-auto">
+              Your immediate neighborhood looks clean and clear! If you noticed a road pothole, dark streetlight, or waste dump nearby, be the first to signal it.
+            </p>
+            <div className="flex justify-center gap-3 pt-2">
+              <button
+                onClick={() => setProximityRadius(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                View All City Issues
+              </button>
+              <button
+                onClick={() => onNavigate('report')}
+                className="btn-glass-primary px-4 py-2 rounded-xl text-white text-xs font-bold transition-all cursor-pointer"
+              >
+                Report New Problem
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {nearbyIssues.slice(0, 6).map((issue) => (
+              <IssueCard
+                key={issue.id}
+                issue={issue}
+                onClick={onSelectIssue}
+                userLocation={userCoords}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Top Priority Queue Section */}
@@ -276,7 +484,12 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {recentIssues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} onClick={onSelectIssue} />
+            <IssueCard 
+              key={issue.id} 
+              issue={issue} 
+              onClick={onSelectIssue} 
+              userLocation={userCoords}
+            />
           ))}
         </div>
       </div>

@@ -10,13 +10,17 @@ import {
   User, 
   Activity,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Navigation,
+  LocateFixed
 } from 'lucide-react';
 import { Issue } from '../../types';
 import { AuthUser } from '../../services/api';
 import { InteractiveMap } from '../map/InteractiveMap';
 import { CATEGORY_LABELS, SEVERITY_INFO, STATUS_INFO } from '../../utils/priority';
 import { formatDateTime } from '../../utils/formatters';
+import { useUserLocation } from '../../hooks/useUserLocation';
+import { calculateDistanceKm, formatDistance } from '../../utils/geo';
 
 interface CitizenDashboardProps {
   user: AuthUser;
@@ -32,6 +36,15 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
   onSelectIssue,
 }) => {
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null);
+
+  // GPS Device Location
+  const {
+    coords: userCoords,
+    status: gpsStatus,
+    placeName: userPlaceName,
+    isLocating,
+    requestLocation,
+  } = useUserLocation();
 
   // Filter issues for this citizen
   const myReports = issues.filter(
@@ -55,10 +68,10 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
                 <User className="w-3.5 h-3.5 text-violet-400" />
                 <span>Verified Citizen Identity</span>
               </span>
-              {user.area && (
+              {(user.area || userPlaceName) && (
                 <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-cyan-500/10 border border-cyan-400/20 text-cyan-300 text-xs font-medium">
                   <MapPin className="w-3 h-3 text-cyan-400" />
-                  <span>{user.area}</span>
+                  <span className="truncate max-w-xs">{userPlaceName || user.area}</span>
                 </span>
               )}
             </div>
@@ -67,7 +80,7 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
               Welcome, {user.name}
             </h1>
             <p className="text-sm text-slate-400 mt-1 max-w-xl">
-              Track your submitted civic signals, review live status progressions, and lodge GPS-assisted community reports.
+              Track your submitted civic signals, review live status progressions, and lodge GPS-assisted community reports around your neighborhood.
             </p>
           </div>
 
@@ -142,6 +155,13 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
                 const statusInfo = STATUS_INFO[report.status];
                 const sevInfo = SEVERITY_INFO[report.severity];
 
+                // Distance from user
+                const distKm =
+                  userCoords && typeof userCoords.lat === 'number'
+                    ? calculateDistanceKm(userCoords.lat, userCoords.lng, report.latitude, report.longitude)
+                    : null;
+                const distText = distKm !== null ? formatDistance(distKm) : null;
+
                 return (
                   <div
                     key={report.id}
@@ -159,6 +179,12 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${sevInfo.border} ${sevInfo.bg} ${sevInfo.color}`}>
                           {sevInfo.label}
                         </span>
+                        {distText && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 flex items-center gap-1">
+                            <Navigation className="w-2.5 h-2.5 text-cyan-400" />
+                            <span>{distText}</span>
+                          </span>
+                        )}
                         <span className="text-[11px] text-slate-400">
                           {formatDateTime(report.created_at)}
                         </span>
@@ -208,9 +234,15 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-cyan-400" />
-                <h3 className="font-bold text-sm text-white">Local Map View</h3>
+                <h3 className="font-bold text-sm text-white">Local GPS Map View</h3>
               </div>
-              <span className="text-[11px] text-cyan-300 font-medium">GPS Active</span>
+              <button
+                onClick={() => requestLocation(true)}
+                className="text-[11px] text-cyan-300 hover:text-cyan-200 font-medium flex items-center gap-1 cursor-pointer"
+              >
+                <LocateFixed className="w-3 h-3 text-cyan-400" />
+                <span>Locate</span>
+              </button>
             </div>
 
             <div className="rounded-xl overflow-hidden border border-white/10 h-64">
@@ -219,6 +251,8 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
                 selectedIssueId={selectedIssue?.id}
                 onSelectIssue={(iss) => onSelectIssue(iss)}
                 className="h-full w-full"
+                userLocation={userCoords}
+                onLocateMe={() => requestLocation(true)}
               />
             </div>
           </div>
@@ -244,8 +278,8 @@ export const CitizenDashboard: React.FC<CitizenDashboardProps> = ({
                 <span className="text-white">{user.age ? `${user.age} yrs` : 'Not specified'}</span>
               </div>
               <div className="flex justify-between py-1.5">
-                <span className="text-slate-400">Designated Ward</span>
-                <span className="text-cyan-300 font-medium">{user.area || 'Citywide'}</span>
+                <span className="text-slate-400">Current GPS Area</span>
+                <span className="text-cyan-300 font-medium truncate max-w-[150px]">{userPlaceName || user.area || 'Citywide'}</span>
               </div>
             </div>
           </div>

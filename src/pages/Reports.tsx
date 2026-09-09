@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, SlidersHorizontal, CheckCircle2, RotateCcw, Tag } from 'lucide-react';
+import { Search, Filter, SlidersHorizontal, CheckCircle2, RotateCcw, Tag, Navigation, LocateFixed } from 'lucide-react';
 import { Issue } from '../types';
 import { IssueCard } from '../components/issues/IssueCard';
 import { Vector7 } from '../components/common/DecorativeVectors';
 import { getTicketId } from '../utils/formatters';
+import { useUserLocation } from '../hooks/useUserLocation';
+import { calculateDistanceKm } from '../utils/geo';
 
 interface ReportsProps {
   issues: Issue[];
@@ -21,6 +23,9 @@ export const Reports: React.FC<ReportsProps> = ({
   const [statusFilter, setStatusFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
   const [sortBy, setSortBy] = useState('most_recent');
+
+  // GPS Device Location
+  const { coords: userCoords, placeName: userPlaceName, isLocating, requestLocation } = useUserLocation();
 
   const categories = [
     { id: 'all', label: 'All Categories' },
@@ -68,7 +73,13 @@ export const Reports: React.FC<ReportsProps> = ({
       return matchCat && matchStatus && matchSev && matchQuery;
     });
 
-    if (sortBy === 'most_upvoted') {
+    if (sortBy === 'closest_gps' && userCoords) {
+      list.sort((a, b) => {
+        const distA = calculateDistanceKm(userCoords.lat, userCoords.lng, a.latitude, a.longitude);
+        const distB = calculateDistanceKm(userCoords.lat, userCoords.lng, b.latitude, b.longitude);
+        return distA - distB;
+      });
+    } else if (sortBy === 'most_upvoted') {
       list.sort((a, b) => b.upvotes - a.upvotes);
     } else if (sortBy === 'highest_priority') {
       list.sort((a, b) => b.priority_score - a.priority_score);
@@ -79,7 +90,7 @@ export const Reports: React.FC<ReportsProps> = ({
     }
 
     return list;
-  }, [issues, search, categoryFilter, statusFilter, severityFilter, sortBy]);
+  }, [issues, search, categoryFilter, statusFilter, severityFilter, sortBy, userCoords]);
 
   const resetFilters = () => {
     setSearch('');
@@ -97,31 +108,32 @@ export const Reports: React.FC<ReportsProps> = ({
     sortBy !== 'most_recent';
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in pb-12">
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             Community Reports
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-400 mt-1">
             Search, filter, and track verified civic issues reported across the area.
           </p>
         </div>
         <button
           onClick={onNavigateReport}
-          className="self-start sm:self-auto px-4 py-2.5 bg-[#123B5D] hover:bg-[#0B263D] text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs transition-all active:scale-97"
+          className="self-start sm:self-auto btn-glass-primary px-4 py-2.5 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer"
         >
           + Submit New Report
         </button>
       </div>
 
       {/* Filter and Search Panel */}
-      <div className="bg-white rounded-2xl border border-[#E4E7EC] p-4 sm:p-5 shadow-xs space-y-4 relative overflow-hidden">
-        {/* Subtle decorative Vector 7 (crossroads routing) */}
-        <div className="absolute right-4 top-4 w-20 h-16 opacity-10 text-[#123B5D] pointer-events-none hidden lg:block">
+      <div className="glass-card rounded-2xl border border-white/10 p-4 sm:p-5 shadow-xl space-y-4 relative overflow-hidden">
+        {/* Subtle decorative Vector 7 */}
+        <div className="absolute right-4 top-4 w-20 h-16 opacity-10 text-cyan-400 pointer-events-none hidden lg:block">
           <Vector7 className="w-full h-full" />
         </div>
+        
         {/* Search Bar & Sort Dropdown */}
         <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
           <div className="relative flex-1">
@@ -131,19 +143,20 @@ export const Reports: React.FC<ReportsProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search by title, description, address, or category..."
-              className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm focus:outline-hidden focus:ring-1 focus:ring-[#123B5D] focus:bg-white"
+              className="w-full pl-10 pr-4 py-2.5 bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/10 rounded-xl text-xs sm:text-sm text-white placeholder-slate-400 focus:outline-hidden focus:border-cyan-400 transition-all"
             />
           </div>
 
           <div className="flex items-center gap-2">
-            <SlidersHorizontal className="w-4 h-4 text-slate-400 shrink-0" />
-            <span className="text-xs text-slate-500 font-medium whitespace-nowrap">Sort:</span>
+            <SlidersHorizontal className="w-4 h-4 text-cyan-400 shrink-0" />
+            <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Sort:</span>
             <select
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
-              className="text-xs sm:text-sm bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-medium text-slate-700 focus:outline-hidden focus:ring-1 focus:ring-[#123B5D]"
+              className="text-xs sm:text-sm bg-slate-900 border border-white/15 rounded-xl px-3 py-2 font-medium text-slate-200 focus:outline-hidden focus:border-cyan-400 cursor-pointer"
             >
               <option value="most_recent">Most Recent</option>
+              <option value="closest_gps">📍 Closest to Me (GPS)</option>
               <option value="most_upvoted">Most Upvoted</option>
               <option value="highest_priority">Highest Priority</option>
             </select>
@@ -151,7 +164,7 @@ export const Reports: React.FC<ReportsProps> = ({
             {isFiltered && (
               <button
                 onClick={resetFilters}
-                className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 px-2 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-1 text-xs text-slate-400 hover:text-white px-2 py-2 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
                 title="Reset Filters"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
@@ -163,7 +176,7 @@ export const Reports: React.FC<ReportsProps> = ({
 
         {/* Category Pills */}
         <div>
-          <span className="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">
+          <span className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">
             Category:
           </span>
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
@@ -171,10 +184,10 @@ export const Reports: React.FC<ReportsProps> = ({
               <button
                 key={cat.id}
                 onClick={() => setCategoryFilter(cat.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer ${
                   categoryFilter === cat.id
-                    ? 'bg-[#123B5D] text-white shadow-2xs font-semibold'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    ? 'bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20'
+                    : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
                 }`}
               >
                 {cat.label}
@@ -184,19 +197,19 @@ export const Reports: React.FC<ReportsProps> = ({
         </div>
 
         {/* Status and Severity Filters */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-3 border-t border-white/10">
           <div className="flex flex-wrap items-center gap-4 text-xs">
             {/* Status pills */}
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-500 mr-1">Status:</span>
+              <span className="font-semibold text-slate-400 mr-1">Status:</span>
               {statuses.map((st) => (
                 <button
                   key={st.id}
                   onClick={() => setStatusFilter(st.id)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                     statusFilter === st.id
-                      ? 'bg-[#2F6F8F] text-white font-semibold'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      ? 'bg-cyan-600 text-white font-semibold shadow-xs'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10'
                   }`}
                 >
                   {st.label}
@@ -206,15 +219,15 @@ export const Reports: React.FC<ReportsProps> = ({
 
             {/* Severity pills */}
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-500 mr-1">Severity:</span>
+              <span className="font-semibold text-slate-400 mr-1">Severity:</span>
               {severities.map((sev) => (
                 <button
                   key={sev.id}
                   onClick={() => setSeverityFilter(sev.id)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                     severityFilter === sev.id
-                      ? 'bg-slate-800 text-white font-semibold'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                      ? 'bg-violet-600 text-white font-semibold shadow-xs'
+                      : 'bg-white/5 hover:bg-white/10 text-slate-400 border border-white/10'
                   }`}
                 >
                   {sev.label}
@@ -223,43 +236,41 @@ export const Reports: React.FC<ReportsProps> = ({
             </div>
           </div>
 
-          <div className="text-xs font-medium text-slate-500">
-            Showing <span className="font-bold text-slate-900">{filteredIssues.length}</span> issues
+          <div className="text-xs text-slate-400">
+            Showing <strong className="text-white">{filteredIssues.length}</strong> of{' '}
+            <strong className="text-white">{issues.length}</strong> reports
           </div>
         </div>
       </div>
 
-      {/* Reports Grid or Empty State */}
+      {/* Grid of Issue Cards */}
       {filteredIssues.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-[#E4E7EC] p-12 text-center max-w-lg mx-auto shadow-xs">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-4">
-            <CheckCircle2 className="w-6 h-6" />
+        <div className="glass-card rounded-2xl border border-white/10 p-12 text-center space-y-3">
+          <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto text-slate-400">
+            <Filter className="w-6 h-6" />
           </div>
-          <h3 className="font-extrabold text-base text-slate-900 uppercase tracking-wide">
-            All Clear
-          </h3>
-          <p className="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">
-            There are no civic issues matching your selected filters. Be the first person to report an issue in your community.
+          <h3 className="font-bold text-white text-base">No Matching Reports Found</h3>
+          <p className="text-xs text-slate-400 max-w-sm mx-auto">
+            Try adjusting your search terms, changing the category or severity filter, or clearing all filters.
           </p>
-          <div className="mt-6 flex items-center justify-center gap-3">
+          {isFiltered && (
             <button
               onClick={resetFilters}
-              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl"
+              className="text-xs font-semibold text-cyan-400 hover:text-cyan-300 underline cursor-pointer"
             >
-              Clear Filters
+              Reset all filters
             </button>
-            <button
-              onClick={onNavigateReport}
-              className="px-4 py-2 bg-[#123B5D] hover:bg-[#0B263D] text-white text-xs font-semibold rounded-xl"
-            >
-              Report an Issue
-            </button>
-          </div>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredIssues.map((issue) => (
-            <IssueCard key={issue.id} issue={issue} onClick={onSelectIssue} />
+            <IssueCard
+              key={issue.id}
+              issue={issue}
+              onClick={onSelectIssue}
+              userLocation={userCoords}
+            />
           ))}
         </div>
       )}

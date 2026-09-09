@@ -81,15 +81,21 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
     }
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setCoordinates({ lat, lng });
-        setAddress(`GPS Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)}`);
+        try {
+          const { reverseGeocodeAddress } = await import('../utils/geo');
+          const resolved = await reverseGeocodeAddress(lat, lng);
+          setAddress(resolved);
+        } catch {
+          setAddress(`GPS (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`);
+        }
         setIsLocating(false);
       },
       (err) => {
-        console.warn('Geolocation denied or failed, using campus default:', err.message);
+        console.warn('Geolocation denied or failed, using community center default:', err.message);
         setIsLocating(false);
         setCoordinates({ lat: 37.7749 + (Math.random() - 0.5) * 0.005, lng: -122.4194 + (Math.random() - 0.5) * 0.005 });
       },

@@ -1,19 +1,28 @@
 import React from 'react';
-import { MapPin, Users, Sparkles, ImageOff, Tag } from 'lucide-react';
+import { MapPin, Users, Sparkles, ImageOff, Tag, Navigation } from 'lucide-react';
 import { Issue } from '../../types';
 import { CATEGORY_LABELS, SEVERITY_INFO, STATUS_INFO } from '../../utils/priority';
 import { getTicketId } from '../../utils/formatters';
+import { calculateDistanceKm, formatDistance, GeoCoordinates } from '../../utils/geo';
 
 interface IssueCardProps {
   issue: Issue;
   onClick: (issue: Issue) => void;
+  userLocation?: GeoCoordinates | null;
 }
 
-export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
+export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick, userLocation }) => {
   const catLabel = CATEGORY_LABELS[issue.category] || issue.category.replace('_', ' ');
   const sev = SEVERITY_INFO[issue.severity];
   const status = STATUS_INFO[issue.status];
   const ticketId = getTicketId(issue);
+
+  // Distance calculation if userLocation is supplied
+  const distanceKm =
+    userLocation && typeof userLocation.lat === 'number'
+      ? calculateDistanceKm(userLocation.lat, userLocation.lng, issue.latitude, issue.longitude)
+      : null;
+  const distanceText = distanceKm !== null ? formatDistance(distanceKm) : null;
 
   return (
     <div
@@ -30,7 +39,6 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
             referrerPolicy="no-referrer"
             loading="lazy"
             onError={(e) => {
-              // fallback if broken external link
               (e.currentTarget as HTMLElement).style.display = 'none';
             }}
           />
@@ -46,7 +54,7 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
           <span className="px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider uppercase bg-[#123B5D]/90 text-white backdrop-blur-xs shadow-xs">
             {catLabel}
           </span>
-          <span className="px-2 py-1 rounded-md text-[10px] font-mono font-bold bg-black/75 text-cyan-300 backdrop-blur-xs shadow-xs border border-cyan-400/30">
+          <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-black/75 text-cyan-300 backdrop-blur-xs shadow-xs border border-cyan-400/30">
             {ticketId}
           </span>
         </div>
@@ -62,10 +70,20 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick }) => {
       {/* Body Content */}
       <div className="p-4 flex-1 flex flex-col justify-between">
         <div>
-          <div className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-700 font-bold mb-1">
-            <Tag className="w-3 h-3 text-cyan-600" />
-            <span>Ticket: {ticketId}</span>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-1.5 text-[11px] font-mono text-cyan-700 font-bold">
+              <Tag className="w-3 h-3 text-cyan-600" />
+              <span>Ticket: {ticketId}</span>
+            </div>
+
+            {distanceText && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-cyan-50 border border-cyan-200/80 text-cyan-800 text-[10px] font-bold">
+                <Navigation className="w-2.5 h-2.5 text-cyan-600" />
+                <span>{distanceText}</span>
+              </span>
+            )}
           </div>
+
           <h3 className="font-bold text-slate-900 text-base leading-snug group-hover:text-[#123B5D] transition-colors mb-2 line-clamp-2">
             {issue.title}
           </h3>
