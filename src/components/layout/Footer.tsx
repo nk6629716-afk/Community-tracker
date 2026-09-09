@@ -2,7 +2,11 @@ import React from 'react';
 import { Compass, CheckCircle2, Shield, Sparkles } from 'lucide-react';
 import { Vector12 } from '../common/DecorativeVectors';
 
-export const Footer: React.FC = () => {
+interface FooterProps {
+  onReplayBoot?: () => void;
+}
+
+export const Footer: React.FC<FooterProps> = ({ onReplayBoot }) => {
   const lifecycleSteps = [
     'Discover',
     'Report',
@@ -53,7 +57,16 @@ export const Footer: React.FC = () => {
             <span>Send the signal. See the change.</span>
           </div>
 
-          <div className="flex items-center gap-4 text-[11px]">
+          <div className="flex flex-wrap items-center gap-4 text-[11px]">
+            {onReplayBoot && (
+              <button
+                onClick={onReplayBoot}
+                className="hover:text-cyan-600 transition-colors font-mono text-[11px] flex items-center gap-1 cursor-pointer text-slate-500 font-semibold"
+                title="Replay System Boot Sequence"
+              >
+                <span>⚡ Replay Boot Telemetry</span>
+              </button>
+            )}
             <span className="flex items-center gap-1 text-slate-600">
               <Shield className="w-3.5 h-3.5 text-emerald-600" />
               Privacy & Anonymous Safe

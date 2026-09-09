@@ -25,6 +25,7 @@ interface HeaderProps {
   onLogout: () => void;
   isAuthorityMode?: boolean;
   onToggleAuthorityMode?: () => void;
+  onReplayBoot?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -35,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLogout,
   isAuthorityMode,
   onToggleAuthorityMode,
+  onReplayBoot,
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -153,6 +155,18 @@ export const Header: React.FC<HeaderProps> = ({
                     Sign Up
                   </button>
                 </div>
+              )}
+
+              {/* Boot Telemetry Replay Button */}
+              {onReplayBoot && (
+                <button
+                  onClick={onReplayBoot}
+                  className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-cyan-500/20 bg-cyan-950/20 hover:bg-cyan-950/50 hover:border-cyan-400/40 text-[11px] font-mono-tech text-cyan-300 transition-all cursor-pointer shadow-2xs"
+                  title="Replay Community Tracker Digital City Boot Sequence"
+                >
+                  <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+                  <span className="tracking-wider">BOOT TELEMETRY</span>
+                </button>
               )}
 
               {/* Report Issue Button */}

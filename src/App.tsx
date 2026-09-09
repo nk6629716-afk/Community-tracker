@@ -16,6 +16,7 @@ import { CitypulseCursor } from './components/common/CitypulseCursor';
 import { AuthModal } from './components/auth/AuthModal';
 import { CitizenDashboard } from './components/dashboard/CitizenDashboard';
 import { AuthorityDashboard } from './components/dashboard/AuthorityDashboard';
+import { CommunityTrackerBootScreen } from './components/loading/CommunityTrackerBootScreen';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -23,6 +24,7 @@ export default function App() {
   const [issues, setIssues] = useState<Issue[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [showBootScreen, setShowBootScreen] = useState<boolean>(true);
   const [prefilledLocation, setPrefilledLocation] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
 
@@ -189,6 +191,14 @@ export default function App() {
       {/* Citypulse Nucleus & Orbiting Electron Custom Cursor */}
       <CitypulseCursor />
 
+      {/* Community Tracker Digital City Infrastructure Initialization Screen */}
+      {showBootScreen && (
+        <CommunityTrackerBootScreen
+          onComplete={() => setShowBootScreen(false)}
+          isDataReady={!isLoading}
+        />
+      )}
+
       {/* Top Header with Navigation & Auth Integration */}
       <Header
         currentTab={currentTab}
@@ -197,6 +207,7 @@ export default function App() {
         onOpenAuth={handleOpenAuth}
         onLogout={handleLogout}
         isAuthorityMode={currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN'}
+        onReplayBoot={() => setShowBootScreen(true)}
       />
 
       {/* Floating Notification Toast */}
@@ -315,7 +326,7 @@ export default function App() {
       </main>
 
       {/* Footer with Civic Lifecycle Journey */}
-      <Footer />
+      <Footer onReplayBoot={() => setShowBootScreen(true)} />
 
       {/* Interactive Dual-Path Authentication Modal */}
       <AuthModal
