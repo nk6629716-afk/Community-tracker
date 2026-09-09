@@ -153,6 +153,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     } catch (err: any) {
       alert(err.message || 'Failed to update role');
     }
+  };
   // Filter users
   const filteredUsers = users.filter((u) => {
     const q = userSearch.toLowerCase().trim();
