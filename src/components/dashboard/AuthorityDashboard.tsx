@@ -23,7 +23,18 @@ import {
   Users,
   ShieldCheck,
   Award,
-  Trash2
+  Trash2,
+  Key,
+  Copy,
+  Check,
+  Radio,
+  Megaphone,
+  Sliders,
+  Download,
+  Cpu,
+  Terminal,
+  X,
+  Shield
 } from 'lucide-react';
 import { Issue, IssueStatus } from '../../types';
 import { AuthUser, api } from '../../services/api';
@@ -44,8 +55,28 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   onSelectIssue,
   onRefresh,
 }) => {
-  // Navigation between Incident Management, User Management, and Officer Provisioning
-  const [tabMode, setTabMode] = useState<'incidents' | 'users' | 'provision'>('incidents');
+  // Navigation between Incident Management, User Management, Officer Provisioning, and Advanced Controls
+  const [tabMode, setTabMode] = useState<'incidents' | 'users' | 'provision' | 'security'>('incidents');
+
+  // Password Reset Verification Code State
+  const [activeGeneratedCode, setActiveGeneratedCode] = useState<{
+    code: string;
+    email: string;
+    userName: string;
+    expiresAt: string;
+    instructions?: string;
+  } | null>(null);
+  const [isCopiedCode, setIsCopiedCode] = useState(false);
+  const [isGeneratingCode, setIsGeneratingCode] = useState<string | null>(null);
+
+  // Advanced Security & Admin Controls State
+  const [broadcastMessage, setBroadcastMessage] = useState('');
+  const [broadcastSeverity, setBroadcastSeverity] = useState<'high' | 'critical'>('high');
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastStatus, setBroadcastStatus] = useState<string | null>(null);
+  const [directCodeIdentifier, setDirectCodeIdentifier] = useState('');
+  const [activeResetCodesList, setActiveResetCodesList] = useState<any[]>([]);
+  const [isLoadingCodes, setIsLoadingCodes] = useState(false);
 
   // Incident state
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,11 +124,81 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     fetchUsers();
   }, []);
 
+  // Fetch Active Developer Reset Codes
+  const fetchActiveResetCodes = async () => {
+    try {
+      setIsLoadingCodes(true);
+      const data = await api.getResetCodes();
+      setActiveResetCodesList(data);
+    } catch (err: any) {
+      console.warn('Failed to load active reset codes:', err);
+    } finally {
+      setIsLoadingCodes(false);
+    }
+  };
+
   useEffect(() => {
     if (tabMode === 'users' || tabMode === 'provision') {
       fetchUsers();
     }
+    if (tabMode === 'security') {
+      fetchActiveResetCodes();
+      fetchUsers();
+    }
   }, [tabMode]);
+
+  // Handle Developer Reset Code Generation for a specific user
+  const handleGenerateResetCode = async (identifier: string) => {
+    try {
+      setIsGeneratingCode(identifier);
+      const res = await api.generateResetCode(identifier);
+      setActiveGeneratedCode({
+        code: res.code,
+        email: res.email,
+        userName: res.userName,
+        expiresAt: res.expiresAt,
+        instructions: res.instructions,
+      });
+      setIsCopiedCode(false);
+      fetchActiveResetCodes();
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate developer reset passcode');
+    } finally {
+      setIsGeneratingCode(null);
+    }
+  };
+
+  // Handle Emergency Broadcast
+  const handleSendBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastMessage.trim()) return;
+
+    try {
+      setIsBroadcasting(true);
+      await api.broadcastEmergency(broadcastMessage.trim(), broadcastSeverity);
+      setBroadcastStatus('📡 Emergency broadcast transmitted live across the civic mesh.');
+      setBroadcastMessage('');
+      setTimeout(() => setBroadcastStatus(null), 5000);
+    } catch (err: any) {
+      setBroadcastStatus(`Broadcast failed: ${err.message}`);
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
+
+  // Export Incident Dataset as JSON
+  const handleExportIncidents = () => {
+    const jsonStr = JSON.stringify(issues, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `citypulse_incident_telemetry_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // Handle direct officer provisioning
   const handleCreateOfficer = async (e: React.FormEvent) => {
@@ -357,6 +458,23 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
         >
           <UserPlus className="w-4 h-4 text-emerald-300" />
           <span>Add Municipal Officer</span>
+        </button>
+
+        <button
+          onClick={() => setTabMode('security')}
+          className={`flex-1 min-w-[160px] py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+            tabMode === 'security'
+              ? 'bg-gradient-to-r from-amber-600 via-orange-600 to-rose-600 text-white shadow-lg shadow-amber-500/20'
+              : 'text-slate-400 hover:text-white hover:bg-white/5'
+          }`}
+        >
+          <Sliders className="w-4 h-4 text-amber-300" />
+          <span>Advanced Admin & Security</span>
+          {activeResetCodesList.length > 0 && (
+            <span className="px-2 py-0.5 rounded-full bg-black/40 text-amber-300 text-[10px] font-mono">
+              {activeResetCodesList.length} Codes
+            </span>
+          )}
         </button>
       </div>
 
@@ -652,6 +770,16 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                                   Set Citizen
                                 </button>
                               )}
+
+                              <button
+                                onClick={() => handleGenerateResetCode(u.id)}
+                                disabled={isGeneratingCode === u.id}
+                                className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 font-semibold text-[11px] border border-amber-500/30 transition cursor-pointer inline-flex items-center gap-1"
+                                title="Generate Developer Password Reset Verification Passcode"
+                              >
+                                <Key className="w-3 h-3" />
+                                <span>{isGeneratingCode === u.id ? 'Generating...' : 'Reset Code'}</span>
+                              </button>
 
                               <button
                                 onClick={() => handleDeleteUser(u.id, u.name)}
@@ -986,6 +1114,282 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                 <p className="text-slate-400 text-sm">Select an incident from the queue to view details.</p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB CONTENT: ADVANCED ADMIN & SECURITY CONTROLS */}
+      {tabMode === 'security' && (
+        <div className="space-y-8 animate-fade-in">
+          {/* Emergency Alert Dispatch Console */}
+          <div className="glass-card rounded-3xl p-6 sm:p-8 border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-slate-900/60 to-orange-950/30 shadow-2xl">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+                <span>Civic Emergency Dispatch Terminal</span>
+              </span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white">
+              City-Wide Incident Alert & Mesh Broadcast
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-300 mt-1 mb-6">
+              Dispatch high-priority alert signals directly to all connected citizens and officers across real-time WebSockets.
+            </p>
+
+            {broadcastStatus && (
+              <div className="mb-5 p-4 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs font-bold animate-fade-in flex items-center gap-2">
+                <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
+                <span>{broadcastStatus}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSendBroadcast} className="space-y-4 max-w-3xl">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Alert Message & Civic Advisory *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={broadcastMessage}
+                  onChange={(e) => setBroadcastMessage(e.target.value)}
+                  placeholder="e.g. Flash flood warning in Sector 4. Municipal squads deployed. Avoid underpass."
+                  className="glass-input w-full px-4 py-3 rounded-xl text-sm"
+                />
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-slate-400">Severity Tier:</label>
+                  <select
+                    value={broadcastSeverity}
+                    onChange={(e) => setBroadcastSeverity(e.target.value as any)}
+                    className="glass-input px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-slate-900 border border-white/10"
+                  >
+                    <option value="high">High Advisory (Amber)</option>
+                    <option value="critical">Critical Emergency (Red)</option>
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isBroadcasting}
+                  className="btn-glass-primary px-6 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 cursor-pointer shadow-lg ml-auto"
+                >
+                  <Radio className="w-4 h-4 text-cyan-300 animate-pulse" />
+                  <span>{isBroadcasting ? 'Broadcasting Signal...' : 'Broadcast Across City Mesh'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Developer Verification Passcodes & Password Recovery Console */}
+          <div className="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <Key className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xl font-bold text-white">Developer Password Reset Authorization Console</h3>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Generate secure, time-stamped verification codes for citizens or officers who require password recovery.
+                </p>
+              </div>
+
+              <button
+                onClick={fetchActiveResetCodes}
+                className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition border border-white/10 cursor-pointer self-start sm:self-auto"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Refresh Codes</span>
+              </button>
+            </div>
+
+            {/* Quick Identifier Generator Form */}
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 max-w-2xl">
+              <label className="block text-xs font-bold text-slate-300 mb-2">
+                Generate Verification Code for Any Registered Email:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter citizen or officer email (e.g. citizen@citypulse.gov)"
+                  value={directCodeIdentifier}
+                  onChange={(e) => setDirectCodeIdentifier(e.target.value)}
+                  className="flex-1 px-3.5 py-2 rounded-xl glass-input text-xs"
+                />
+                <button
+                  onClick={() => {
+                    if (directCodeIdentifier.trim()) {
+                      handleGenerateResetCode(directCodeIdentifier.trim());
+                      setDirectCodeIdentifier('');
+                    }
+                  }}
+                  disabled={!directCodeIdentifier.trim() || isGeneratingCode !== null}
+                  className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50"
+                >
+                  {isGeneratingCode ? 'Generating...' : 'Issue Code'}
+                </button>
+              </div>
+            </div>
+
+            {/* Active Verification Codes Table */}
+            <div className="space-y-3">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
+                Active Unexpired Authorization Passcodes ({activeResetCodesList.length})
+              </span>
+
+              {isLoadingCodes ? (
+                <div className="p-8 text-center text-xs text-slate-400">Checking authorization ledger...</div>
+              ) : activeResetCodesList.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-slate-400">
+                  No active password reset passcodes currently pending. Generate a code using the form above or the User Access Control table.
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/10">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-white/5 uppercase tracking-wider text-[10px] text-slate-400 font-bold border-b border-white/10">
+                      <tr>
+                        <th className="py-2.5 px-4">User Account</th>
+                        <th className="py-2.5 px-4">Verification Passcode</th>
+                        <th className="py-2.5 px-4">Expires</th>
+                        <th className="py-2.5 px-4">Authorized By</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {activeResetCodesList.map((rc: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-white/5">
+                          <td className="py-2.5 px-4 font-semibold text-white">
+                            <div>{rc.userName || 'Citizen'}</div>
+                            <div className="text-slate-400 text-[11px] font-mono">{rc.email}</div>
+                          </td>
+                          <td className="py-2.5 px-4 font-mono font-bold text-cyan-300 text-sm">
+                            <span className="px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-400/30">
+                              {rc.code}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-400 text-[11px]">
+                            {new Date(rc.expiresAt).toLocaleTimeString()}
+                          </td>
+                          <td className="py-2.5 px-4 text-slate-300">
+                            {rc.generatedBy}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Advanced Triage & Telemetry Operations */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="glass-card rounded-3xl p-6 border border-white/10 space-y-4">
+              <div className="flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-cyan-400" />
+                <h4 className="text-sm font-bold text-white">Incident Data & Audit Management</h4>
+              </div>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Download verified incident datasets or trigger automated pipeline syncs across municipal sub-stations.
+              </p>
+              <button
+                onClick={handleExportIncidents}
+                className="btn-glass-secondary px-4 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 cursor-pointer w-full justify-center"
+              >
+                <Download className="w-3.5 h-3.5 text-cyan-400" />
+                <span>Export Municipal Dataset (JSON)</span>
+              </button>
+            </div>
+
+            <div className="glass-card rounded-3xl p-6 border border-white/10 space-y-4">
+              <div className="flex items-center gap-2">
+                <Cpu className="w-4 h-4 text-emerald-400" />
+                <h4 className="text-sm font-bold text-white">Live Civic Mesh Telemetry</h4>
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-slate-400 text-[10px] block">SOCKET.IO PROTOCOL</span>
+                  <span className="text-emerald-400 font-bold font-mono">CONNECTED (14ms)</span>
+                </div>
+                <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                  <span className="text-slate-400 text-[10px] block">SECURITY CLEARANCE</span>
+                  <span className="text-cyan-300 font-bold font-mono">ROLE: {user.role}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: GENERATED DEVELOPER VERIFICATION PASSCODE */}
+      {activeGeneratedCode && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+          <div className="glass-modal w-full max-w-md rounded-3xl p-6 relative border border-amber-500/40 shadow-2xl space-y-5">
+            <button
+              onClick={() => setActiveGeneratedCode(null)}
+              className="absolute top-5 right-5 w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center text-slate-400 hover:text-white transition cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-400/40 text-amber-300 flex items-center justify-center shadow-md">
+                <Key className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Developer Passcode Issued</h3>
+                <p className="text-xs text-slate-400">One-Time Account Password Recovery</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-black/60 border border-amber-400/30 text-center space-y-2">
+              <span className="text-[11px] text-slate-400 uppercase tracking-wider font-semibold">
+                Authorization Verification Passcode
+              </span>
+              <div className="text-3xl font-black font-mono tracking-widest text-cyan-300 py-1 select-all">
+                {activeGeneratedCode.code}
+              </div>
+              <div className="text-[11px] text-slate-400">
+                Issued for: <span className="text-white font-bold">{activeGeneratedCode.userName}</span> ({activeGeneratedCode.email})
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/10">
+              ℹ️ Share this verification code with the user. They must enter this exact code on the <strong>Password Recovery Portal</strong> to verify their request and set a new password.
+            </p>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Citypulse Recovery Passcode: ${activeGeneratedCode.code}\nUser: ${activeGeneratedCode.userName} (${activeGeneratedCode.email})\nEnter this code on the Password Recovery portal to reset your password.`
+                  );
+                  setIsCopiedCode(true);
+                  setTimeout(() => setIsCopiedCode(false), 3000);
+                }}
+                className="flex-1 py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white text-xs font-bold shadow-lg transition flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {isCopiedCode ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-300" />
+                    <span>Copied to Clipboard!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-4 h-4" />
+                    <span>Copy Code & Instructions</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveGeneratedCode(null)}
+                className="px-4 py-3 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold transition cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

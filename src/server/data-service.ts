@@ -29,6 +29,8 @@ export const dataService = {
     postgres ? postgres.updateUserRole(id, role) : Promise.resolve(citypulseDb.updateUserRole(id, role)),
   deleteUser: (id: string) =>
     postgres ? postgres.deleteUser(id) : Promise.resolve(citypulseDb.deleteUser(id)),
+  updateUserPassword: (email: string, passwordHash: string) =>
+    postgres ? postgres.updateUserPassword(email, passwordHash) : Promise.resolve(citypulseDb.updateUserPassword(email, passwordHash)),
   getAllReports: (filters?: ReportFilters) => postgres ? postgres.getAllReports(filters) : Promise.resolve(citypulseDb.getAllReports(filters)),
   getReportById: (id: string) => postgres ? postgres.getReportById(id) : Promise.resolve(citypulseDb.getReportById(id)),
   createReport: (data: {

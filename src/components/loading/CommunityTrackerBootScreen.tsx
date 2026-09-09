@@ -105,12 +105,12 @@ export const CommunityTrackerBootScreen: React.FC<BootScreenProps> = ({
     { id: 'b-9', sector: 'SEC-09', type: 'resolved_node', label: 'Debris Cleared', latLng: '28.6070° N, 77.2310° E', intensity: 0.9, active: true },
   ]);
 
-  // Handle smooth exit transition
+  // Handle smooth cinematic exit transition
   const handleExit = () => {
     setIsExiting(true);
     setTimeout(() => {
       onComplete();
-    }, 600);
+    }, 1100);
   };
 
   // Keyboard shortcut: ESC, Space, or Enter to skip/enter immediately
@@ -125,19 +125,19 @@ export const CommunityTrackerBootScreen: React.FC<BootScreenProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Drive progressive initialization sequence
+  // Drive progressive initialization sequence with deliberate, cinematic pacing
   useEffect(() => {
-    const stepDuration = 600; // ms per step
+    const stepDuration = 880; // ms per step for smooth, readable pacing
     const interval = setInterval(() => {
       setCurrentStep((prev) => {
         const next = prev + 1;
         if (next >= terminalLogs.length) {
           setProgress(100);
           clearInterval(interval);
-          // If data is ready, auto-exit after brief pause
+          // Pause smoothly on 100% complete before dissolving into dashboard
           setTimeout(() => {
             handleExit();
-          }, 1000);
+          }, 2000);
           return terminalLogs.length - 1;
         }
         setProgress(Math.min(97, Math.round((next / (terminalLogs.length - 1)) * 95)));
@@ -160,15 +160,15 @@ export const CommunityTrackerBootScreen: React.FC<BootScreenProps> = ({
           return block;
         })
       );
-    }, 450);
+    }, 550);
 
     return () => clearInterval(packetInterval);
   }, [activePacketIndex, cityBlocks.length]);
 
   return (
     <div
-      className={`fixed inset-0 z-[9999] h-screen max-h-screen w-screen bg-[#07080b] text-[#e2e8f0] font-mono-tech select-none overflow-hidden flex flex-col justify-between transition-all duration-700 ${
-        isExiting ? 'opacity-0 scale-[1.015] pointer-events-none filter blur-[2px]' : 'opacity-100 scale-100'
+      className={`fixed inset-0 z-[9999] h-screen max-h-screen w-screen bg-[#07080b] text-[#e2e8f0] font-mono-tech select-none overflow-hidden flex flex-col justify-between transition-all duration-1000 ease-out ${
+        isExiting ? 'opacity-0 scale-[1.03] pointer-events-none filter blur-[14px]' : 'opacity-100 scale-100'
       }`}
     >
       {/* Background Engineering Coordinate Grid */}

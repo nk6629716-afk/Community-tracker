@@ -291,6 +291,73 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
+// =========================================================================
+// DEVELOPER VERIFICATION CODES & SECURE PASSWORD RECOVERY SYSTEM
+// =========================================================================
+
+interface ResetCodeRecord {
+  code: string;
+  email: string;
+  userId?: string;
+  userName?: string;
+  createdAt: number;
+  expiresAt: number;
+  generatedBy: string;
+}
+
+const activeResetCodes = new Map<string, ResetCodeRecord>();
+
+// POST /api/auth/reset-password - Verify developer authorization code and reset account password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'Email, developer verification code, and new password are required.' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    }
+
+    const normEmail = email.toLowerCase().trim();
+    const normCode = code.trim().toUpperCase();
+
+    const record = activeResetCodes.get(normEmail);
+    if (!record) {
+      return res.status(400).json({
+        error: 'No active reset request found for this email. Please ask your Municipal Officer or Admin to generate a verification code for your account.',
+      });
+    }
+
+    if (record.expiresAt < Date.now()) {
+      activeResetCodes.delete(normEmail);
+      return res.status(400).json({
+        error: 'Verification code has expired. Please request a fresh code from your Municipal Officer.',
+      });
+    }
+
+    if (record.code.toUpperCase() !== normCode) {
+      return res.status(400).json({
+        error: 'Invalid developer verification code. The code does not match the authorization token issued for this account.',
+      });
+    }
+
+    // Code verified! Hash new password and update in database
+    const passwordHash = await hashPassword(newPassword);
+    await dataService.updateUserPassword(normEmail, passwordHash);
+
+    // Consume and invalidate code
+    activeResetCodes.delete(normEmail);
+
+    res.json({
+      message: 'Password successfully updated! You may now sign in with your new credentials.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Password reset failed' });
+  }
+});
+
 // ==========================================
 // MASTER ADMIN & USER MANAGEMENT ROUTES
 // ==========================================
@@ -409,6 +476,93 @@ app.delete('/api/admin/users/:id', requireAdminOrAuthority, async (req, res) => 
     res.json({ message: 'User removed successfully' });
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to remove user' });
+  }
+});
+
+// POST /api/admin/reset-code/generate - Municipal Officer/Admin generates a secure developer reset code
+app.post('/api/admin/reset-code/generate', requireAdminOrAuthority, async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ error: 'User email or ID is required to generate a reset code.' });
+    }
+
+    let user = await dataService.findUserByEmail(identifier);
+    if (!user) {
+      user = await dataService.findUserById(identifier);
+    }
+
+    if (!user) {
+      return res.status(404).json({ error: 'No account found matching this user identifier.' });
+    }
+
+    const officerUser = (req as any).user;
+    // Generate secure 6-digit dev verification code, e.g. DEV-742918
+    const randomDigits = Math.floor(100000 + Math.random() * 900000);
+    const code = `DEV-${randomDigits}`;
+    const now = Date.now();
+    const expiresAt = now + 24 * 60 * 60 * 1000; // 24 hours validity
+
+    const record: ResetCodeRecord = {
+      code,
+      email: user.email.toLowerCase().trim(),
+      userId: user.id,
+      userName: user.name,
+      createdAt: now,
+      expiresAt,
+      generatedBy: officerUser?.name || 'Municipal Officer',
+    };
+
+    activeResetCodes.set(user.email.toLowerCase().trim(), record);
+
+    res.json({
+      message: `Verification passcode successfully generated for ${user.name}`,
+      code,
+      email: user.email,
+      userName: user.name,
+      userId: user.id,
+      expiresAt: new Date(expiresAt).toISOString(),
+      instructions: `Share code "${code}" with ${user.name}. They must enter this code on the Password Recovery portal to verify authorization.`,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to generate reset code' });
+  }
+});
+
+// GET /api/admin/reset-codes - View all active reset verification codes
+app.get('/api/admin/reset-codes', requireAdminOrAuthority, (req, res) => {
+  const now = Date.now();
+  const validCodes: ResetCodeRecord[] = [];
+  for (const [email, record] of activeResetCodes.entries()) {
+    if (record.expiresAt > now) {
+      validCodes.push(record);
+    } else {
+      activeResetCodes.delete(email);
+    }
+  }
+  res.json(validCodes);
+});
+
+// POST /api/admin/broadcast - Broadcast emergency alert across civic mesh network
+app.post('/api/admin/broadcast', requireAdminOrAuthority, (req, res) => {
+  try {
+    const { message, severity } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: 'Broadcast message is required.' });
+    }
+
+    const broadcastPayload = {
+      id: `alert-${Date.now()}`,
+      message: String(message).trim(),
+      severity: severity || 'high',
+      timestamp: new Date().toISOString(),
+      author: (req as any).user?.name || 'City Operations Command',
+    };
+
+    io.emit('emergency_broadcast', broadcastPayload);
+    res.json({ message: 'Emergency broadcast dispatched successfully', alert: broadcastPayload });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to send broadcast' });
   }
 });
 

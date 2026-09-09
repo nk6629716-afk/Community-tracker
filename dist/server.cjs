@@ -359,6 +359,15 @@ var CitypulseDatabase = class {
     this.save();
     return true;
   }
+  updateUserPassword(emailOrId, passwordHash) {
+    const norm = emailOrId.toLowerCase().trim();
+    const user = this.users.find((u) => u.id === emailOrId || u.email.toLowerCase().trim() === norm);
+    if (!user) return false;
+    user.passwordHash = passwordHash;
+    user.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    this.save();
+    return true;
+  }
   // --- REPORT OPERATIONS ---
   getAllReports(filters) {
     let result = [...this.reports];
@@ -652,6 +661,13 @@ var PostgresCitypulseDatabase = class {
     await pool.query("DELETE FROM users WHERE id = $1", [id]);
     return true;
   }
+  async updateUserPassword(email, passwordHash) {
+    const result = await pool.query(
+      "UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = $2 RETURNING *",
+      [passwordHash, email.toLowerCase().trim()]
+    );
+    return result.rows[0] ? mapUser(result.rows[0]) : null;
+  }
   async getAllReports(filters = {}) {
     const conditions = [];
     const values = [];
@@ -782,6 +798,7 @@ var dataService = {
   getAllUsers: () => postgres ? postgres.getAllUsers() : Promise.resolve(citypulseDb.getAllUsers()),
   updateUserRole: (id, role) => postgres ? postgres.updateUserRole(id, role) : Promise.resolve(citypulseDb.updateUserRole(id, role)),
   deleteUser: (id) => postgres ? postgres.deleteUser(id) : Promise.resolve(citypulseDb.deleteUser(id)),
+  updateUserPassword: (email, passwordHash) => postgres ? postgres.updateUserPassword(email, passwordHash) : Promise.resolve(citypulseDb.updateUserPassword(email, passwordHash)),
   getAllReports: (filters) => postgres ? postgres.getAllReports(filters) : Promise.resolve(citypulseDb.getAllReports(filters)),
   getReportById: (id) => postgres ? postgres.getReportById(id) : Promise.resolve(citypulseDb.getReportById(id)),
   createReport: (data) => postgres ? postgres.createReport(data) : Promise.resolve(citypulseDb.createReport(data)),
@@ -1191,6 +1208,45 @@ app.get("/api/auth/me", async (req, res) => {
 app.post("/api/auth/logout", (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
+var activeResetCodes = /* @__PURE__ */ new Map();
+app.post("/api/auth/reset-password", async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: "Email, developer verification code, and new password are required." });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: "New password must be at least 6 characters long." });
+    }
+    const normEmail = email.toLowerCase().trim();
+    const normCode = code.trim().toUpperCase();
+    const record = activeResetCodes.get(normEmail);
+    if (!record) {
+      return res.status(400).json({
+        error: "No active reset request found for this email. Please ask your Municipal Officer or Admin to generate a verification code for your account."
+      });
+    }
+    if (record.expiresAt < Date.now()) {
+      activeResetCodes.delete(normEmail);
+      return res.status(400).json({
+        error: "Verification code has expired. Please request a fresh code from your Municipal Officer."
+      });
+    }
+    if (record.code.toUpperCase() !== normCode) {
+      return res.status(400).json({
+        error: "Invalid developer verification code. The code does not match the authorization token issued for this account."
+      });
+    }
+    const passwordHash = await hashPassword(newPassword);
+    await dataService.updateUserPassword(normEmail, passwordHash);
+    activeResetCodes.delete(normEmail);
+    res.json({
+      message: "Password successfully updated! You may now sign in with your new credentials."
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Password reset failed" });
+  }
+});
 function requireAdminOrAuthority(req, res, next) {
   const currentUser = req.user;
   if (!currentUser) {
@@ -1288,6 +1344,78 @@ app.delete("/api/admin/users/:id", requireAdminOrAuthority, async (req, res) => 
     res.json({ message: "User removed successfully" });
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to remove user" });
+  }
+});
+app.post("/api/admin/reset-code/generate", requireAdminOrAuthority, async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) {
+      return res.status(400).json({ error: "User email or ID is required to generate a reset code." });
+    }
+    let user = await dataService.findUserByEmail(identifier);
+    if (!user) {
+      user = await dataService.findUserById(identifier);
+    }
+    if (!user) {
+      return res.status(404).json({ error: "No account found matching this user identifier." });
+    }
+    const officerUser = req.user;
+    const randomDigits = Math.floor(1e5 + Math.random() * 9e5);
+    const code = `DEV-${randomDigits}`;
+    const now = Date.now();
+    const expiresAt = now + 24 * 60 * 60 * 1e3;
+    const record = {
+      code,
+      email: user.email.toLowerCase().trim(),
+      userId: user.id,
+      userName: user.name,
+      createdAt: now,
+      expiresAt,
+      generatedBy: officerUser?.name || "Municipal Officer"
+    };
+    activeResetCodes.set(user.email.toLowerCase().trim(), record);
+    res.json({
+      message: `Verification passcode successfully generated for ${user.name}`,
+      code,
+      email: user.email,
+      userName: user.name,
+      userId: user.id,
+      expiresAt: new Date(expiresAt).toISOString(),
+      instructions: `Share code "${code}" with ${user.name}. They must enter this code on the Password Recovery portal to verify authorization.`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to generate reset code" });
+  }
+});
+app.get("/api/admin/reset-codes", requireAdminOrAuthority, (req, res) => {
+  const now = Date.now();
+  const validCodes = [];
+  for (const [email, record] of activeResetCodes.entries()) {
+    if (record.expiresAt > now) {
+      validCodes.push(record);
+    } else {
+      activeResetCodes.delete(email);
+    }
+  }
+  res.json(validCodes);
+});
+app.post("/api/admin/broadcast", requireAdminOrAuthority, (req, res) => {
+  try {
+    const { message, severity } = req.body;
+    if (!message) {
+      return res.status(400).json({ error: "Broadcast message is required." });
+    }
+    const broadcastPayload = {
+      id: `alert-${Date.now()}`,
+      message: String(message).trim(),
+      severity: severity || "high",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      author: req.user?.name || "City Operations Command"
+    };
+    io.emit("emergency_broadcast", broadcastPayload);
+    res.json({ message: "Emergency broadcast dispatched successfully", alert: broadcastPayload });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to send broadcast" });
   }
 });
 async function handleGetReports(req, res) {

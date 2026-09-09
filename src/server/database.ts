@@ -352,6 +352,16 @@ class CitypulseDatabase {
     return true;
   }
 
+  public updateUserPassword(emailOrId: string, passwordHash: string): boolean {
+    const norm = emailOrId.toLowerCase().trim();
+    const user = this.users.find((u) => u.id === emailOrId || u.email.toLowerCase().trim() === norm);
+    if (!user) return false;
+    user.passwordHash = passwordHash;
+    user.updatedAt = new Date().toISOString();
+    this.save();
+    return true;
+  }
+
   // --- REPORT OPERATIONS ---
   public getAllReports(filters?: {
     category?: string;

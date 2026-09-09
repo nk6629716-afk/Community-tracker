@@ -131,6 +131,14 @@ export class PostgresCitypulseDatabase {
     return true;
   }
 
+  async updateUserPassword(email: string, passwordHash: string) {
+    const result = await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE LOWER(email) = $2 RETURNING *',
+      [passwordHash, email.toLowerCase().trim()]
+    );
+    return result.rows[0] ? mapUser(result.rows[0]) : null;
+  }
+
   async getAllReports(filters: ReportFilters = {}) {
     const conditions: string[] = [];
     const values: unknown[] = [];

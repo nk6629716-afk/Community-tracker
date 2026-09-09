@@ -199,16 +199,24 @@ export default function App() {
         />
       )}
 
-      {/* Top Header with Navigation & Auth Integration */}
-      <Header
-        currentTab={currentTab}
-        onNavigate={(tab) => handleNavigate(tab)}
-        currentUser={currentUser}
-        onOpenAuth={handleOpenAuth}
-        onLogout={handleLogout}
-        isAuthorityMode={currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN'}
-        onReplayBoot={() => setShowBootScreen(true)}
-      />
+      {/* Main Application Container with Slow, Smooth Reveal */}
+      <div
+        className={`min-h-screen flex flex-col transition-opacity duration-1000 ease-out ${
+          showBootScreen
+            ? 'opacity-0 pointer-events-none'
+            : 'opacity-100'
+        }`}
+      >
+        {/* Top Header with Navigation & Auth Integration */}
+        <Header
+          currentTab={currentTab}
+          onNavigate={(tab) => handleNavigate(tab)}
+          currentUser={currentUser}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          isAuthorityMode={currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN'}
+          onReplayBoot={() => setShowBootScreen(true)}
+        />
 
       {/* Floating Notification Toast */}
       {notification && (
@@ -327,6 +335,7 @@ export default function App() {
 
       {/* Footer with Civic Lifecycle Journey */}
       <Footer onReplayBoot={() => setShowBootScreen(true)} />
+      </div>
 
       {/* Interactive Dual-Path Authentication Modal */}
       <AuthModal

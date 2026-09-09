@@ -39,7 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const effectiveRole = initialRole || defaultRole;
   const effectiveMode = initialMode || defaultMode;
-  const [mode, setMode] = useState<'login' | 'signup'>(effectiveMode);
+  const [mode, setMode] = useState<'login' | 'signup' | 'reset'>(effectiveMode);
   const [selectedRole, setSelectedRole] = useState<'CITIZEN' | 'AUTHORITY'>(effectiveRole);
   const [hasChosenRole, setHasChosenRole] = useState<boolean>(true);
 
@@ -50,6 +50,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [age, setAge] = useState('');
   const [area, setArea] = useState('');
   const [officerCode, setOfficerCode] = useState('');
+
+  // Password Reset fields
+  const [resetVerificationCode, setResetVerificationCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [resetSuccessMessage, setResetSuccessMessage] = useState<string | null>(null);
 
   // UI state
   const [isLoading, setIsLoading] = useState(false);
@@ -126,8 +132,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setIsLoading(true);
     setErrorMessage(null);
+    setResetSuccessMessage(null);
 
     try {
+      if (mode === 'reset') {
+        if (!email.trim()) {
+          throw new Error('Please enter your registered email address.');
+        }
+        if (!resetVerificationCode.trim()) {
+          throw new Error('Please enter the developer verification code provided by your Municipal Officer.');
+        }
+        if (newPassword.length < 6) {
+          throw new Error('New password must be at least 6 characters long.');
+        }
+        if (newPassword !== confirmPassword) {
+          throw new Error('New password and confirmation do not match.');
+        }
+
+        const res = await api.resetPassword({
+          email: email.trim(),
+          code: resetVerificationCode.trim(),
+          newPassword,
+        });
+
+        setExpression('happy');
+        setResetSuccessMessage(res.message);
+        setIsLoading(false);
+
+        // Auto-switch to login after 2 seconds
+        setTimeout(() => {
+          setMode('login');
+          setPassword('');
+          setResetVerificationCode('');
+          setNewPassword('');
+          setConfirmPassword('');
+          setResetSuccessMessage(null);
+        }, 2200);
+        return;
+      }
+
       if (mode === 'signup') {
         const res = await api.signup({
           email,
@@ -171,7 +214,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       // FAILURE EXPRESSION (Section 11)
       setExpression('sad');
       setIsLoading(false);
-      setErrorMessage(err.message || 'Authentication failed. Please check your credentials.');
+      setErrorMessage(err.message || 'Operation failed. Please verify your details.');
     }
   };
 
@@ -193,10 +236,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <span>Citypulse Security Gateway</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-            {mode === 'login' ? 'Authentication Portal' : 'Create Citizen Account'}
+            {mode === 'login' ? 'Authentication Portal' : mode === 'signup' ? 'Create Citizen Account' : 'Password Recovery'}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Send the signal. See the change.
+            {mode === 'reset' ? 'Verified with Developer / Municipal Authorization Code' : 'Send the signal. See the change.'}
           </p>
         </div>
 
@@ -216,7 +259,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           >
             {/* Top Badge */}
             <span className="text-[9px] font-mono tracking-widest text-violet-300 uppercase">
-              {selectedRole}
+              {mode === 'reset' ? 'RECOVERY' : selectedRole}
             </span>
 
             {/* Eyes Container */}
@@ -259,34 +302,54 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
 
-        {/* ROLE SELECTION FOR LOGIN OR SIGNUP */}
-        <div className="grid grid-cols-2 gap-2.5 mb-6 p-1 bg-white/5 rounded-2xl border border-white/10">
-          <button
-            type="button"
-            onClick={() => handleSelectRole('CITIZEN')}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              selectedRole === 'CITIZEN'
-                ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <User className="w-3.5 h-3.5" />
-            <span>{mode === 'login' ? 'Citizen Login' : 'Citizen Sign Up'}</span>
-          </button>
+        {/* ROLE SELECTION FOR LOGIN OR SIGNUP / VERIFICATION BADGE FOR RESET */}
+        {mode !== 'reset' ? (
+          <div className="grid grid-cols-2 gap-2.5 mb-6 p-1 bg-white/5 rounded-2xl border border-white/10">
+            <button
+              type="button"
+              onClick={() => handleSelectRole('CITIZEN')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                selectedRole === 'CITIZEN'
+                  ? 'bg-gradient-to-r from-violet-600 to-indigo-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>{mode === 'login' ? 'Citizen Login' : 'Citizen Sign Up'}</span>
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleSelectRole('AUTHORITY')}
-            className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-              selectedRole === 'AUTHORITY'
-                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>{mode === 'login' ? 'Officer / Admin' : 'Municipal Officer'}</span>
-          </button>
-        </div>
+            <button
+              type="button"
+              onClick={() => handleSelectRole('AUTHORITY')}
+              className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                selectedRole === 'AUTHORITY'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>{mode === 'login' ? 'Officer / Admin' : 'Municipal Officer'}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="mb-6 p-3 rounded-2xl bg-cyan-950/40 border border-cyan-500/30 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 text-cyan-300 font-bold">
+              <ShieldCheck className="w-4 h-4 text-cyan-400" />
+              <span>Municipal Verification Protocol</span>
+            </div>
+            <span className="text-[10px] font-mono text-cyan-400 bg-cyan-900/50 px-2 py-0.5 rounded border border-cyan-400/30 font-bold">
+              AUTH-RECOVERY
+            </span>
+          </div>
+        )}
+
+        {/* Success Notification */}
+        {resetSuccessMessage && (
+          <div className="mb-5 p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-medium flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{resetSuccessMessage} Redirecting to login...</span>
+          </div>
+        )}
 
         {/* Error Notification */}
         {errorMessage && (
@@ -298,119 +361,218 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         {/* Form Container */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          {mode === 'signup' && (
+          {mode === 'reset' ? (
             <>
-              {selectedRole === 'AUTHORITY' && (
-                <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-2">
-                  <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-bold">
-                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
-                    <span>Officer Developer Authorization Code</span>
-                  </div>
-                  <div className="relative">
-                    <Lock className="w-4 h-4 text-cyan-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      value={officerCode}
-                      onChange={(e) => setOfficerCode(e.target.value)}
-                      placeholder="Enter developer authorization code"
-                      className="glass-input w-full pl-10 pr-4 py-2 rounded-xl text-sm border-cyan-400/40 focus:border-cyan-400"
-                    />
-                  </div>
-                  <p className="text-[11px] text-cyan-200/80">
-                    This authorization code was provided by one of our developers.
-                  </p>
-                </div>
-              )}
-
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-1">
-                  Full Name
+                  Registered Email Address
                 </label>
                 <div className="relative">
-                  <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
-                    type="text"
+                    type="email"
                     required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={selectedRole === 'AUTHORITY' ? "Officer Alex Rivera" : "Alex Rivera"}
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="citizen@citypulse.gov"
                     className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Age
-                  </label>
-                  <div className="relative">
-                    <Calendar className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="number"
-                      min="14"
-                      max="120"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      placeholder="28"
-                      className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
-                    />
-                  </div>
+              <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-2">
+                <div className="flex items-center justify-between text-cyan-300 text-xs font-bold">
+                  <span className="flex items-center gap-1.5">
+                    <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                    <span>Officer Verification Passcode</span>
+                  </span>
+                  <span className="text-[10px] font-mono text-cyan-400">DEV-XXXXXX</span>
                 </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-cyan-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={resetVerificationCode}
+                    onChange={(e) => setResetVerificationCode(e.target.value.toUpperCase())}
+                    placeholder="e.g. DEV-849201"
+                    className="glass-input w-full pl-10 pr-4 py-2 rounded-xl text-sm font-mono tracking-widest text-cyan-300 border-cyan-400/40 focus:border-cyan-400 uppercase"
+                  />
+                </div>
+                <p className="text-[11px] text-cyan-200/80 leading-relaxed">
+                  Enter the code issued by your Municipal Officer or Admin from the Command Dashboard.
+                </p>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    {selectedRole === 'AUTHORITY' ? 'Department / Ward' : 'Neighborhood / Area'}
-                  </label>
-                  <div className="relative">
-                    <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      value={area}
-                      onChange={(e) => setArea(e.target.value)}
-                      placeholder={selectedRole === 'AUTHORITY' ? "Ward 7 - Sanitation" : "North Campus"}
-                      className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
-                    />
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  New Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimum 6 characters"
+                    className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  Confirm New Password
+                </label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter your new password"
+                    className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              {mode === 'signup' && (
+                <>
+                  {selectedRole === 'AUTHORITY' && (
+                    <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 space-y-2">
+                      <div className="flex items-center gap-1.5 text-cyan-300 text-xs font-bold">
+                        <ShieldCheck className="w-4 h-4 text-cyan-400" />
+                        <span>Officer Developer Authorization Code</span>
+                      </div>
+                      <div className="relative">
+                        <Lock className="w-4 h-4 text-cyan-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          required
+                          value={officerCode}
+                          onChange={(e) => setOfficerCode(e.target.value)}
+                          placeholder="Enter developer authorization code"
+                          className="glass-input w-full pl-10 pr-4 py-2 rounded-xl text-sm border-cyan-400/40 focus:border-cyan-400"
+                        />
+                      </div>
+                      <p className="text-[11px] text-cyan-200/80">
+                        This authorization code was provided by one of our developers.
+                      </p>
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Full Name
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder={selectedRole === 'AUTHORITY' ? "Officer Alex Rivera" : "Alex Rivera"}
+                        className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                      />
+                    </div>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        Age
+                      </label>
+                      <div className="relative">
+                        <Calendar className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="number"
+                          min="14"
+                          max="120"
+                          value={age}
+                          onChange={(e) => setAge(e.target.value)}
+                          placeholder="28"
+                          className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-300 mb-1">
+                        {selectedRole === 'AUTHORITY' ? 'Department / Ward' : 'Neighborhood / Area'}
+                      </label>
+                      <div className="relative">
+                        <MapPin className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                        <input
+                          type="text"
+                          value={area}
+                          onChange={(e) => setArea(e.target.value)}
+                          placeholder={selectedRole === 'AUTHORITY' ? "Ward 7 - Sanitation" : "North Campus"}
+                          className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  {mode === 'login' ? 'Email or Username' : 'Email Address'}
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder={selectedRole === 'AUTHORITY' ? "Admin (or officer@citypulse.gov)" : "citizen@citypulse.gov"}
+                    className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-slate-300">
+                    Password
+                  </label>
+                  {mode === 'login' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('reset');
+                        setErrorMessage(null);
+                        setResetSuccessMessage(null);
+                        setExpression('neutral');
+                      }}
+                      className="text-[11px] text-cyan-400 hover:text-cyan-300 font-semibold hover:underline cursor-pointer"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
+                  />
                 </div>
               </div>
             </>
           )}
-
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1">
-              {mode === 'login' ? 'Email or Username' : 'Email Address'}
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder={selectedRole === 'AUTHORITY' ? "Admin (or officer@citypulse.gov)" : "citizen@citypulse.gov"}
-                className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-300 mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="glass-input w-full pl-10 pr-4 py-2.5 rounded-xl text-sm"
-              />
-            </div>
-          </div>
 
           <button
             type="submit"
@@ -418,7 +580,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             className="btn-glass-primary w-full py-3 rounded-xl text-white text-sm font-bold shadow-lg flex items-center justify-center gap-2 cursor-pointer mt-2"
           >
             {isLoading ? (
-              <span>Authenticating...</span>
+              <span>Processing...</span>
+            ) : mode === 'reset' ? (
+              <>
+                <span>Verify Code & Reset Password</span>
+                <ArrowRight className="w-4 h-4" />
+              </>
             ) : mode === 'login' ? (
               <>
                 <span>Continue as {selectedRole === 'CITIZEN' ? 'Citizen' : 'Municipal Officer'}</span>
@@ -437,9 +604,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </form>
 
-        {/* Toggle between Login and Signup */}
+        {/* Toggle between Login, Signup, and Reset */}
         <div className="mt-6 text-center border-t border-white/10 pt-4 text-xs text-slate-400">
-          {mode === 'login' ? (
+          {mode === 'reset' ? (
+            <span>
+              Remembered your credentials?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setErrorMessage(null);
+                  setResetSuccessMessage(null);
+                  setExpression('neutral');
+                }}
+                className="text-violet-400 hover:text-violet-300 font-bold underline ml-1 cursor-pointer"
+              >
+                Back to Login
+              </button>
+            </span>
+          ) : mode === 'login' ? (
             <span>
               Don't have an account yet?{' '}
               <button

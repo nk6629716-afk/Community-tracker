@@ -192,6 +192,64 @@ export const api = {
     if (!res.ok) throw new Error('Failed to remove user');
   },
 
+  async generateResetCode(identifier: string): Promise<{
+    message: string;
+    code: string;
+    email: string;
+    userName: string;
+    expiresAt: string;
+    instructions: string;
+  }> {
+    const res = await fetch(apiUrl('/api/admin/reset-code/generate'), {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ identifier }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to generate developer verification code');
+    return data;
+  },
+
+  async getResetCodes(): Promise<Array<{
+    code: string;
+    email: string;
+    userName?: string;
+    expiresAt: number;
+    generatedBy: string;
+  }>> {
+    const res = await fetch(apiUrl('/api/admin/reset-codes'), {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch active verification codes');
+    return res.json();
+  },
+
+  async resetPassword(payload: {
+    email: string;
+    code: string;
+    newPassword: string;
+  }): Promise<{ message: string }> {
+    const res = await fetch(apiUrl('/api/auth/reset-password'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Password reset failed');
+    return data;
+  },
+
+  async broadcastEmergency(message: string, severity: 'high' | 'critical' = 'high'): Promise<any> {
+    const res = await fetch(apiUrl('/api/admin/broadcast'), {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ message, severity }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to dispatch broadcast');
+    return data;
+  },
+
   // Reports endpoints
   async getIssues(params?: {
     search?: string;
