@@ -169,7 +169,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </button>
           </div>
 
-          <div className="rounded-2xl overflow-hidden border border-white/10">
+          <div className="relative isolate rounded-2xl overflow-hidden border border-white/10">
             <InteractiveMap
               issues={issues}
               onSelectIssue={onSelectIssue}

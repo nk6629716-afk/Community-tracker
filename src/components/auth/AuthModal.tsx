@@ -176,7 +176,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
       <div className="glass-modal w-full max-w-lg rounded-3xl p-6 sm:p-8 relative border border-violet-500/25 shadow-2xl">
         {/* Close button */}
         <button

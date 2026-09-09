@@ -99,7 +99,7 @@ export const MapPage: React.FC<MapPageProps> = ({ issues, onSelectIssue }) => {
       </div>
 
       {/* Full Map Canvas with Slide-out Selected Issue Card */}
-      <div className="relative h-[calc(100vh-250px)] min-h-[500px] rounded-2xl overflow-hidden border border-[#E4E7EC] shadow-xs">
+      <div className="relative isolate h-[calc(100vh-250px)] min-h-[500px] rounded-2xl overflow-hidden border border-white/10 shadow-xs">
         <InteractiveMap
           issues={filteredIssues}
           selectedIssueId={selectedIssue?.id}
@@ -109,7 +109,7 @@ export const MapPage: React.FC<MapPageProps> = ({ issues, onSelectIssue }) => {
 
         {/* Issue Preview Drawer / Float Card when clicked */}
         {selectedIssue && (
-          <div className="absolute top-4 left-4 z-1000 max-w-sm w-full bg-white/95 backdrop-blur-md rounded-2xl border border-[#E4E7EC] shadow-xl p-4 transition-all duration-200 animate-slide-up">
+          <div className="absolute top-4 left-4 z-20 max-w-sm w-full bg-slate-950/90 backdrop-blur-md rounded-2xl border border-white/15 shadow-xl p-4 transition-all duration-200 animate-slide-up">
             <div className="flex items-start justify-between gap-2 mb-2">
               <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#123B5D] text-white">
                 {CATEGORY_LABELS[selectedIssue.category]}

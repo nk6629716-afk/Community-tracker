@@ -212,27 +212,27 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   }, [selectedCoordinates?.lat, selectedCoordinates?.lng, isPickerMode]);
 
   return (
-    <div className={`relative rounded-xl overflow-hidden border border-[#E4E7EC] shadow-xs ${className}`}>
+    <div className={`relative isolate rounded-xl overflow-hidden border border-white/10 shadow-xs ${className}`}>
       <div ref={mapContainerRef} className="h-full w-full z-0" />
       
       {/* Legend overlay */}
       {!isPickerMode && (
-        <div className="absolute bottom-3 right-3 z-1000 bg-white/95 backdrop-blur-xs px-3 py-2 rounded-lg border border-[#E4E7EC] shadow-sm text-xs space-y-1">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+        <div className="absolute bottom-3 left-3 z-10 bg-slate-950/90 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/15 shadow-xl text-xs space-y-1 pointer-events-auto select-none">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-cyan-300 mb-1">
             Severity Legend
           </div>
           <div className="flex items-center gap-3">
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#2E8B57]" /> Low
+            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#10b981] shadow-[0_0_6px_rgba(16,185,129,0.5)]" /> Low
             </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#D69E2E]" /> Medium
+            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f59e0b] shadow-[0_0_6px_rgba(245,158,11,0.5)]" /> Medium
             </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#DD6B20]" /> High
+            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#f97316] shadow-[0_0_6px_rgba(249,115,22,0.5)]" /> High
             </span>
-            <span className="flex items-center gap-1.5 text-slate-700">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#D64545]" /> Critical
+            <span className="flex items-center gap-1.5 text-slate-200 font-medium">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#ef4444] shadow-[0_0_6px_rgba(239,68,68,0.5)]" /> Critical
             </span>
           </div>
         </div>
