@@ -6,7 +6,7 @@ import { UpvoteButton } from '../components/issues/UpvoteButton';
 import { CATEGORY_LABELS, SEVERITY_INFO, STATUS_INFO } from '../utils/priority';
 import { Vector3 } from '../components/common/DecorativeVectors';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { calculateDistanceKm, formatDistance } from '../utils/geo';
+import { calculateDistanceKm, formatDistance, generateLocalizedCommunityIssues } from '../utils/geo';
 
 interface MapPageProps {
   issues: Issue[];
@@ -28,6 +28,25 @@ export const MapPage: React.FC<MapPageProps> = ({ issues, onSelectIssue }) => {
     requestLocation,
   } = useUserLocation();
 
+  // Adapt issues dynamically around user's active GPS / given location if user is far from seed points
+  const effectiveIssues = useMemo(() => {
+    if (!userCoords || typeof userCoords.lat !== 'number' || typeof userCoords.lng !== 'number') {
+      return issues;
+    }
+
+    const hasLocalIssues = issues.some((iss) => {
+      const dist = calculateDistanceKm(userCoords.lat, userCoords.lng, iss.latitude, iss.longitude);
+      return dist <= 35;
+    });
+
+    if (hasLocalIssues) {
+      return issues;
+    }
+
+    const localized = generateLocalizedCommunityIssues(userCoords, userPlaceName);
+    return [...localized, ...issues.filter((i) => i.created_by !== 'Citizen System')];
+  }, [issues, userCoords, userPlaceName]);
+
   const categories: { id: string; label: string }[] = [
     { id: 'all', label: 'All Issues' },
     { id: 'road_damage', label: 'Roads' },
@@ -40,7 +59,7 @@ export const MapPage: React.FC<MapPageProps> = ({ issues, onSelectIssue }) => {
   ];
 
   const filteredIssues = useMemo(() => {
-    return issues.filter((iss) => {
+    return effectiveIssues.filter((iss) => {
       const matchCat = selectedCategory === 'all' || iss.category === selectedCategory;
       const matchQuery =
         !searchQuery ||
@@ -56,7 +75,7 @@ export const MapPage: React.FC<MapPageProps> = ({ issues, onSelectIssue }) => {
 
       return matchCat && matchQuery && matchRadius;
     });
-  }, [issues, selectedCategory, searchQuery, userCoords, proximityRadius]);
+  }, [effectiveIssues, selectedCategory, searchQuery, userCoords, proximityRadius]);
 
   // Selected issue distance
   const selectedIssueDistance = useMemo(() => {

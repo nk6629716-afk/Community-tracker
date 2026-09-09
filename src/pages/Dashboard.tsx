@@ -28,7 +28,7 @@ import { IssueCard } from '../components/issues/IssueCard';
 import { Vector4, Vector9 } from '../components/common/DecorativeVectors';
 import { getTicketId } from '../utils/formatters';
 import { useUserLocation } from '../hooks/useUserLocation';
-import { calculateDistanceKm, formatDistance } from '../utils/geo';
+import { calculateDistanceKm, formatDistance, generateLocalizedCommunityIssues } from '../utils/geo';
 import { ManualLocationModal } from '../components/location/ManualLocationModal';
 
 interface DashboardProps {
@@ -65,9 +65,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
     setManualLocation,
   } = useUserLocation();
 
+  // Adapt issues dynamically around user's active GPS / given location if user is far from seed points
+  const effectiveIssues = useMemo(() => {
+    if (!userCoords || typeof userCoords.lat !== 'number' || typeof userCoords.lng !== 'number') {
+      return issues;
+    }
+
+    // Check if there are already problems within 35km of this user
+    const hasLocalIssues = issues.some((iss) => {
+      const dist = calculateDistanceKm(userCoords.lat, userCoords.lng, iss.latitude, iss.longitude);
+      return dist <= 35;
+    });
+
+    if (hasLocalIssues) {
+      return issues;
+    }
+
+    // Generate realistic localized issues clustered right around user's neighborhood / coordinates
+    const localized = generateLocalizedCommunityIssues(userCoords, userPlaceName);
+    return [...localized, ...issues.filter((i) => i.created_by !== 'Citizen System')];
+  }, [issues, userCoords, userPlaceName]);
+
   // Compute distance and sort issues by proximity to user
   const issuesWithDistance = useMemo(() => {
-    return issues.map((issue) => {
+    return effectiveIssues.map((issue) => {
       const distanceKm =
         userCoords && typeof userCoords.lat === 'number'
           ? calculateDistanceKm(userCoords.lat, userCoords.lng, issue.latitude, issue.longitude)
@@ -77,7 +98,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
         distanceKm,
       };
     });
-  }, [issues, userCoords]);
+  }, [effectiveIssues, userCoords]);
 
   // Issues filtered by proximity radius for map and nearby widget
   const nearbyIssues = useMemo(() => {
@@ -98,7 +119,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Filtered search results
   const searchResults = searchQuery.trim()
-    ? issues.filter((issue) => {
+    ? effectiveIssues.filter((issue) => {
         const query = searchQuery.trim().toLowerCase();
         const ticketId = getTicketId(issue).toLowerCase();
         const matchesQuery =
@@ -115,8 +136,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
   // Recent reports (filtered by status if selected)
   const recentIssues = (selectedStatus === 'all' 
-    ? issues 
-    : issues.filter((i) => i.status === selectedStatus)
+    ? effectiveIssues 
+    : effectiveIssues.filter((i) => i.status === selectedStatus)
   ).slice(0, 6);
 
   return (

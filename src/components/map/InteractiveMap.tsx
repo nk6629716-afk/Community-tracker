@@ -162,12 +162,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     };
   }, []);
 
-  // Update center when prop changes (if not in custom fit mode)
+  // Automatically update map center to userLocation (GPS or manual location) whenever it updates
   useEffect(() => {
-    if (mapInstanceRef.current && center && !userLocation) {
+    if (!mapInstanceRef.current) return;
+
+    if (userLocation && typeof userLocation.lat === 'number' && typeof userLocation.lng === 'number') {
+      mapInstanceRef.current.flyTo([userLocation.lat, userLocation.lng], zoom, {
+        duration: 1.2,
+      });
+    } else if (center) {
       mapInstanceRef.current.setView(center, zoom);
     }
-  }, [center[0], center[1], zoom]);
+  }, [userLocation?.lat, userLocation?.lng, center?.[0], center?.[1], zoom]);
 
   // Handle User GPS Beacon & Proximity Radius Layer
   useEffect(() => {
