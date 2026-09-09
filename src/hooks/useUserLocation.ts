@@ -15,14 +15,18 @@ export interface UserLocationState {
   placeName: string | null;
   error: string | null;
   isLocating: boolean;
+  isManualModalOpen: boolean;
+  setIsManualModalOpen: (open: boolean) => void;
+  openManualModal: () => void;
   requestLocation: (forceFresh?: boolean) => Promise<GeoCoordinates | null>;
   setManualLocation: (coords: GeoCoordinates, name?: string) => void;
 }
 
 const STORAGE_KEY = 'community_tracker_gps_coords';
 const PLACE_STORAGE_KEY = 'community_tracker_gps_place';
+const LOCATION_SOURCE_KEY = 'community_tracker_location_source';
 
-// Default fallback coordinates (San Francisco Civic Center seed)
+// Default fallback coordinates (Civic Center Hub seed)
 export const DEFAULT_FALLBACK_LOCATION: GeoCoordinates = {
   lat: 37.7749,
   lng: -122.4194,
@@ -51,12 +55,21 @@ export function useUserLocation(): UserLocationState {
   const [status, setStatus] = useState<GeolocationStatus>(coords ? 'granted' : 'idle');
   const [error, setError] = useState<string | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState<boolean>(false);
+
+  const openManualModal = useCallback(() => {
+    setIsManualModalOpen(true);
+  }, []);
 
   const setManualLocation = useCallback((newCoords: GeoCoordinates, name?: string) => {
     setCoords(newCoords);
     setStatus('granted');
+    setError(null);
+    setIsManualModalOpen(false);
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newCoords));
+      localStorage.setItem(LOCATION_SOURCE_KEY, 'manual');
     } catch {
       // ignore
     }
@@ -85,6 +98,8 @@ export function useUserLocation(): UserLocationState {
       if (!navigator.geolocation) {
         setStatus('unavailable');
         setError('Geolocation is not supported by your browser or device.');
+        // Flash manual entry modal
+        setIsManualModalOpen(true);
         return null;
       }
 
@@ -104,9 +119,11 @@ export function useUserLocation(): UserLocationState {
             setCoords(newCoords);
             setStatus('granted');
             setIsLocating(false);
+            setIsManualModalOpen(false);
 
             try {
               localStorage.setItem(STORAGE_KEY, JSON.stringify(newCoords));
+              localStorage.setItem(LOCATION_SOURCE_KEY, 'gps');
             } catch {
               // ignore
             }
@@ -123,21 +140,25 @@ export function useUserLocation(): UserLocationState {
             }
           },
           (err) => {
-            console.warn('[Geolocation] Device location error:', err.message);
+            console.warn('[Geolocation] Device location error / denied:', err.message);
             setIsLocating(false);
 
             if (err.code === 1) {
+              // PERMISSION_DENIED: Flash modal for manual entry!
               setStatus('denied');
-              setError('Location permission was denied. You can manually pick a location or enable GPS in browser permissions.');
+              setError('Location permission was denied. Please enter your neighborhood manually.');
+              setIsManualModalOpen(true);
             } else if (err.code === 2) {
               setStatus('unavailable');
-              setError('Position unavailable. Using approximate community center.');
+              setError('Position unavailable. Please enter your neighborhood manually.');
+              setIsManualModalOpen(true);
             } else {
               setStatus('error');
-              setError('Location request timed out.');
+              setError('Location request timed out. Please enter your neighborhood manually.');
+              setIsManualModalOpen(true);
             }
 
-            // If we don't already have saved coords, provide default fallback so the map is never broken
+            // Fallback so that coordinates are never completely null
             if (!coords) {
               setCoords(DEFAULT_FALLBACK_LOCATION);
               setPlaceName('Civic Center Hub');
@@ -156,10 +177,12 @@ export function useUserLocation(): UserLocationState {
     [coords]
   );
 
-  // Automatically request on mount if not yet denied
+  // Automatically request on site visit
   useEffect(() => {
-    if (!coords && navigator.geolocation) {
-      // Probe permission state if available
+    // Check if we already have saved manual location or if we should probe GPS
+    const savedSource = localStorage.getItem(LOCATION_SOURCE_KEY);
+
+    if (navigator.geolocation) {
       if (navigator.permissions && navigator.permissions.query) {
         navigator.permissions
           .query({ name: 'geolocation' as PermissionName })
@@ -167,15 +190,16 @@ export function useUserLocation(): UserLocationState {
             if (result.state === 'granted') {
               requestLocation(false);
             } else if (result.state === 'prompt') {
-              // Smooth initial prompt
+              // Trigger browser permission prompt on visit
               requestLocation(false);
-            } else {
-              // denied
+            } else if (result.state === 'denied') {
               setStatus('denied');
               if (!coords) {
                 setCoords(DEFAULT_FALLBACK_LOCATION);
                 setPlaceName('Civic Center Hub');
               }
+              // If denied, flash popup for manual entry
+              setIsManualModalOpen(true);
             }
           })
           .catch(() => {
@@ -184,6 +208,9 @@ export function useUserLocation(): UserLocationState {
       } else {
         requestLocation(false);
       }
+    } else {
+      // Geolocation not supported at all -> Flash manual popup
+      setIsManualModalOpen(true);
     }
   }, []);
 
@@ -193,6 +220,9 @@ export function useUserLocation(): UserLocationState {
     placeName,
     error,
     isLocating,
+    isManualModalOpen,
+    setIsManualModalOpen,
+    openManualModal,
     requestLocation,
     setManualLocation,
   };

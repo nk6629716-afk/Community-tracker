@@ -29,6 +29,7 @@ import { Vector4, Vector9 } from '../components/common/DecorativeVectors';
 import { getTicketId } from '../utils/formatters';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { calculateDistanceKm, formatDistance } from '../utils/geo';
+import { ManualLocationModal } from '../components/location/ManualLocationModal';
 
 interface DashboardProps {
   issues: Issue[];
@@ -51,13 +52,17 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'reported' | 'in_progress' | 'resolved'>('all');
   const [proximityRadius, setProximityRadius] = useState<number | null>(5); // Default: 5 km radius
 
-  // GPS Device Location
+  // GPS Device Location & Manual Modal State
   const {
     coords: userCoords,
     status: gpsStatus,
     placeName: userPlaceName,
     isLocating,
+    isManualModalOpen,
+    setIsManualModalOpen,
+    openManualModal,
     requestLocation,
+    setManualLocation,
   } = useUserLocation();
 
   // Compute distance and sort issues by proximity to user
@@ -226,8 +231,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-cyan-300">
-                  {userCoords ? '📍 Device GPS Active' : '📍 Location Telemetry'}
+                <span className={`text-xs font-black uppercase tracking-wider ${gpsStatus === 'denied' ? 'text-amber-400' : 'text-cyan-300'}`}>
+                  {gpsStatus === 'denied' ? '📍 Manual Location (GPS Denied)' : userCoords ? '📍 Device GPS Active' : '📍 Location Telemetry'}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-200 border border-cyan-400/30 font-mono">
                   {nearbyIssues.length} nearby problem{nearbyIssues.length === 1 ? '' : 's'}
@@ -239,7 +244,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
 
-          {/* Proximity Radius Controls & GPS Refresh */}
+          {/* Proximity Radius Controls & GPS Refresh / Change Location */}
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1 mr-1">
               <Compass className="w-3.5 h-3.5 text-cyan-400" /> Radius:
@@ -267,9 +272,18 @@ export const Dashboard: React.FC<DashboardProps> = ({
             })}
 
             <button
+              onClick={openManualModal}
+              className="px-3 py-1.5 rounded-xl bg-violet-500/15 hover:bg-violet-500/25 text-violet-300 border border-violet-400/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+              title="Manually set neighborhood area"
+            >
+              <MapPin className="w-3.5 h-3.5 text-violet-400" />
+              <span>Change Area</span>
+            </button>
+
+            <button
               onClick={() => requestLocation(true)}
               disabled={isLocating}
-              className="ml-1 px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+              className="px-3 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-300 border border-cyan-400/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
               title="Refresh GPS Coordinates"
             >
               <Navigation className={`w-3.5 h-3.5 text-cyan-400 ${isLocating ? 'animate-spin' : ''}`} />
@@ -493,6 +507,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Manual Location Entry Modal for GPS Denied / Area Change */}
+      <ManualLocationModal
+        isOpen={isManualModalOpen}
+        onClose={() => setIsManualModalOpen(false)}
+        onSelectLocation={(coords, name) => setManualLocation(coords, name)}
+        onRetryGps={() => requestLocation(true)}
+        isLocating={isLocating}
+        currentPlaceName={userPlaceName}
+      />
     </div>
   );
 };

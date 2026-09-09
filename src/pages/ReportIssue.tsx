@@ -18,6 +18,7 @@ import { InteractiveMap } from '../components/map/InteractiveMap';
 import { api } from '../services/api';
 import { CATEGORY_LABELS, SEVERITY_INFO } from '../utils/priority';
 import { Vector8, Vector10 } from '../components/common/DecorativeVectors';
+import { reverseGeocodeAddress } from '../utils/geo';
 
 interface ReportIssueProps {
   onBack: () => void;
@@ -85,13 +86,9 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
         setCoordinates({ lat, lng });
-        try {
-          const { reverseGeocodeAddress } = await import('../utils/geo');
-          const resolved = await reverseGeocodeAddress(lat, lng);
-          setAddress(resolved);
-        } catch {
-          setAddress(`GPS (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`);
-        }
+        reverseGeocodeAddress(lat, lng)
+          .then((resolved) => setAddress(resolved))
+          .catch(() => setAddress(`GPS (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`));
         setIsLocating(false);
       },
       (err) => {

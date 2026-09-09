@@ -6,6 +6,13 @@ export interface GeoCoordinates {
   accuracy?: number;
 }
 
+export interface LocationSearchResult {
+  name: string;
+  lat: number;
+  lng: number;
+  type?: string;
+}
+
 // Haversine formula to calculate distance between two coordinates in kilometers
 export function calculateDistanceKm(
   lat1: number,
@@ -82,3 +89,51 @@ export async function reverseGeocodeAddress(
 
   return `GPS (${lat.toFixed(4)}°, ${lng.toFixed(4)}°)`;
 }
+
+// Search location address using Nominatim geocoding API
+export async function searchLocationAddress(query: string): Promise<LocationSearchResult[]> {
+  if (!query || query.trim().length < 2) return [];
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 4000);
+
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query.trim())}&limit=5&addressdetails=1`,
+      {
+        headers: {
+          'Accept-Language': 'en',
+          'User-Agent': 'CommunityTracker/1.0',
+        },
+        signal: controller.signal,
+      }
+    );
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const results = await res.json();
+      if (Array.isArray(results)) {
+        return results.map((item) => ({
+          name: item.display_name,
+          lat: parseFloat(item.lat),
+          lng: parseFloat(item.lon),
+          type: item.type || item.class,
+        }));
+      }
+    }
+  } catch (err) {
+    // Graceful fallback to search failure
+  }
+
+  return [];
+}
+
+// Popular community presets for instant selection
+export const COMMUNITY_LOCATION_PRESETS: LocationSearchResult[] = [
+  { name: 'Civic Center & Central Hub', lat: 37.7749, lng: -122.4194, type: 'Downtown' },
+  { name: 'Market District & Commercial Corridor', lat: 37.7785, lng: -122.4150, type: 'Commercial' },
+  { name: 'University Campus & Student Quarter', lat: 37.7710, lng: -122.4230, type: 'Campus' },
+  { name: 'North Ward Transit Station', lat: 37.7812, lng: -122.4105, type: 'Transit' },
+  { name: 'Industrial & Logistics Park', lat: 37.7680, lng: -122.4120, type: 'Industrial' },
+  { name: 'Mission Green Park & Gardens', lat: 37.7695, lng: -122.4265, type: 'Recreation' },
+];
