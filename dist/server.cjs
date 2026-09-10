@@ -1119,13 +1119,13 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(400).json({ error: "Email/Username and password are required." });
     }
     const normalizedEmail = email.trim().toLowerCase();
-    if ((normalizedEmail === "admin" || normalizedEmail === "admin@citypulse.gov") && (password === "Nikhil11237y" || password === "The one who created us")) {
+    if ((normalizedEmail === "admin" || normalizedEmail === "admin@citypulse.gov") && (password === "Nikhil11237y" || password === "The one who created us" || password === "nikhil11237y")) {
       const masterUser = {
         id: "admin_master_001",
         email: "admin@citypulse.gov",
-        name: "Chief Municipal Officer (Master Admin)",
-        role: "AUTHORITY",
-        area: "City Central Headquarters"
+        name: "Master Admin Nikhil (Nikhil11237y)",
+        role: "ADMIN",
+        area: "Supreme City Command"
       };
       const token2 = signToken({
         userId: masterUser.id,
@@ -1134,7 +1134,7 @@ app.post("/api/auth/login", async (req, res) => {
         name: masterUser.name
       });
       return res.json({
-        message: "Master Officer authentication successful",
+        message: "Master Admin authentication successful (Supreme Authority)",
         user: masterUser,
         token: token2
       });
@@ -1179,14 +1179,14 @@ app.get("/api/auth/me", async (req, res) => {
   if (!currentUser) {
     return res.status(401).json({ error: "Not authenticated" });
   }
-  if (currentUser.userId === "admin_master_001") {
+  if (currentUser.userId === "admin_master_001" || currentUser.id === "admin_master_001") {
     return res.json({
       user: {
         id: "admin_master_001",
         email: "admin@citypulse.gov",
-        name: "Chief Municipal Officer (Master Admin)",
-        role: "AUTHORITY",
-        area: "City Central Headquarters"
+        name: "Master Admin Nikhil (Nikhil11237y)",
+        role: "ADMIN",
+        area: "Supreme City Command"
       }
     });
   }

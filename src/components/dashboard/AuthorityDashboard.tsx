@@ -39,6 +39,7 @@ import {
 import { Issue, IssueStatus } from '../../types';
 import { AuthUser, api } from '../../services/api';
 import { InteractiveMap } from '../map/InteractiveMap';
+import { MasterAdminDispatchCodeModal } from './MasterAdminDispatchCodeModal';
 import { CATEGORY_LABELS, SEVERITY_INFO, STATUS_INFO } from '../../utils/priority';
 import { formatDateTime, getTicketId } from '../../utils/formatters';
 
@@ -57,6 +58,10 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
 }) => {
   // Navigation between Incident Management, User Management, Officer Provisioning, and Advanced Controls
   const [tabMode, setTabMode] = useState<'incidents' | 'users' | 'provision' | 'security'>('incidents');
+
+  // Master Admin Status Identification
+  const isMasterAdmin = user.role === 'ADMIN' || user.id === 'admin_master_001' || user.email === 'admin@citypulse.gov';
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = useState(false);
 
   // Password Reset Verification Code State
   const [activeGeneratedCode, setActiveGeneratedCode] = useState<{
@@ -424,7 +429,18 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {isMasterAdmin && (
+              <button
+                onClick={() => setIsDispatchModalOpen(true)}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 text-xs font-black flex items-center gap-2 transition cursor-pointer shadow-lg shadow-amber-500/20 border border-amber-300/40"
+                title="Open Master Admin 10-Minute Dispatch Code Generation Dialogue"
+              >
+                <Key className="w-4 h-4 text-slate-950 animate-pulse" />
+                <span>👑 Master Admin Passcode Terminal (Nikhil11237y)</span>
+              </button>
+            )}
+
             <button
               onClick={() => setViewMode(viewMode === 'queue' ? 'map' : 'queue')}
               className="btn-glass-secondary px-4 py-2.5 rounded-xl text-white text-sm font-semibold flex items-center gap-2 cursor-pointer"
@@ -1221,24 +1237,23 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               </div>
 
               {/* Master Admin Direct Action or Municipal Officer Badge */}
-              {user.role === 'ADMIN' ? (
+              {isMasterAdmin ? (
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-200 text-xs font-bold flex items-center gap-1.5">
-                    👑 Master Admin Direct Authority
+                    👑 Master Admin Direct Authority (Nikhil11237y)
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleGenerateDispatchCode()}
-                    disabled={isGeneratingDispatchCode}
-                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                    onClick={() => setIsDispatchModalOpen(true)}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-md"
                   >
                     <Key className="w-3.5 h-3.5" />
-                    <span>{isGeneratingDispatchCode ? 'Generating...' : '+ Issue 10-Min Officer Code'}</span>
+                    <span>👑 Open Code Generation Dialogue</span>
                   </button>
                 </div>
               ) : (
                 <span className="px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5">
-                  🛡️ Municipal Officer Clearance
+                  🛡️ Municipal Officer Clearance (Requires 10-Min Passcode)
                 </span>
               )}
             </div>
@@ -1696,6 +1711,15 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
           </div>
         </div>
       )}
+      {/* Master Admin 10-Minute Dispatch Authorization Dialogue Modal */}
+      <MasterAdminDispatchCodeModal
+        isOpen={isDispatchModalOpen}
+        onClose={() => setIsDispatchModalOpen(false)}
+        currentUser={user}
+        activeCodes={activeDispatchCodesList}
+        onRefreshCodes={fetchActiveDispatchCodes}
+        nowTimestamp={nowTimestamp}
+      />
     </div>
   );
 };
