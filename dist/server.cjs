@@ -1209,6 +1209,7 @@ app.post("/api/auth/logout", (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 var activeResetCodes = /* @__PURE__ */ new Map();
+var activeDispatchCodes = /* @__PURE__ */ new Map();
 app.post("/api/auth/reset-password", async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
@@ -1399,21 +1400,117 @@ app.get("/api/admin/reset-codes", requireAdminOrAuthority, (req, res) => {
   }
   res.json(validCodes);
 });
+app.post("/api/admin/dispatch-code/generate", requireAdminOrAuthority, (req, res) => {
+  try {
+    const currentUser = req.user;
+    if (currentUser.role !== "ADMIN") {
+      return res.status(403).json({
+        error: "Exclusive Authority: Only Master Administrators can generate 10-minute Emergency Dispatch Codes."
+      });
+    }
+    const { note } = req.body || {};
+    const randomCode = `CMD-${Math.floor(1e5 + Math.random() * 9e5)}`;
+    const now = Date.now();
+    const expiresAt = now + 10 * 60 * 1e3;
+    const record = {
+      code: randomCode,
+      generatedBy: currentUser.name || "Master Administrator",
+      generatedByUserId: currentUser.id,
+      createdAt: now,
+      expiresAt,
+      note: note ? String(note).trim() : "Municipal Officer 10-Min Broadcast Authority",
+      usedCount: 0
+    };
+    activeDispatchCodes.set(randomCode, record);
+    console.log(`\u{1F511} [Dispatch Code Generated] ${randomCode} by ${currentUser.name} (Expires in 10 mins)`);
+    res.json({
+      message: "10-minute dispatch authorization code generated successfully.",
+      code: randomCode,
+      expiresAt: new Date(expiresAt).toISOString(),
+      expiresInSeconds: 600,
+      generatedBy: record.generatedBy
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || "Failed to generate dispatch authorization code" });
+  }
+});
+app.get("/api/admin/dispatch-codes", requireAdminOrAuthority, (req, res) => {
+  const now = Date.now();
+  const validCodes = [];
+  for (const [code, record] of activeDispatchCodes.entries()) {
+    if (record.expiresAt > now) {
+      validCodes.push(record);
+    } else {
+      activeDispatchCodes.delete(code);
+    }
+  }
+  validCodes.sort((a, b) => b.createdAt - a.createdAt);
+  res.json(validCodes);
+});
+app.delete("/api/admin/dispatch-codes/:code", requireAdminOrAuthority, (req, res) => {
+  const currentUser = req.user;
+  if (currentUser.role !== "ADMIN") {
+    return res.status(403).json({ error: "Only Master Administrators can revoke dispatch authorization codes." });
+  }
+  const code = req.params.code;
+  if (activeDispatchCodes.has(code)) {
+    activeDispatchCodes.delete(code);
+    return res.json({ message: `Authorization code ${code} revoked successfully.` });
+  }
+  res.status(404).json({ error: "Code not found or already expired." });
+});
 app.post("/api/admin/broadcast", requireAdminOrAuthority, (req, res) => {
   try {
-    const { message, severity } = req.body;
-    if (!message) {
+    const currentUser = req.user;
+    const { message, severity, dispatchCode } = req.body;
+    if (!message || !String(message).trim()) {
       return res.status(400).json({ error: "Broadcast message is required." });
     }
+    let verifiedDispatchCodeRecord;
+    if (currentUser.role === "ADMIN") {
+    } else if (currentUser.role === "AUTHORITY") {
+      if (!dispatchCode || !String(dispatchCode).trim()) {
+        return res.status(403).json({
+          error: "Master Admin Authorization Required: Municipal Officers must enter an active 10-minute dispatch code generated from the Master Admin Dashboard.",
+          requiresCode: true
+        });
+      }
+      const cleanCode = String(dispatchCode).trim().toUpperCase();
+      const codeRecord = activeDispatchCodes.get(cleanCode);
+      const now = Date.now();
+      if (!codeRecord || codeRecord.expiresAt <= now) {
+        if (codeRecord && codeRecord.expiresAt <= now) {
+          activeDispatchCodes.delete(cleanCode);
+        }
+        return res.status(403).json({
+          error: "Invalid or Expired Authorization Code: The 10-minute dispatch authorization code has expired or is invalid. Please request a fresh code from the Master Admin.",
+          requiresCode: true
+        });
+      }
+      codeRecord.usedCount = (codeRecord.usedCount || 0) + 1;
+      verifiedDispatchCodeRecord = codeRecord;
+    } else {
+      return res.status(403).json({ error: "Unauthorized: Citizen accounts cannot dispatch civic emergency signals." });
+    }
+    const roleTitle = currentUser.role === "ADMIN" ? "\u{1F451} Master Administrator" : "\u{1F6E1}\uFE0F Municipal Operations Officer";
+    const deptTitle = currentUser.area || (currentUser.role === "ADMIN" ? "Executive Civic Command" : "Municipal Operations Division");
     const broadcastPayload = {
       id: `alert-${Date.now()}`,
       message: String(message).trim(),
-      severity: severity || "high",
+      severity: severity === "critical" ? "critical" : "high",
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
-      author: req.user?.name || "City Operations Command"
+      author: currentUser.name || "City Operations Command",
+      authorRole: roleTitle,
+      authorEmail: currentUser.email || "",
+      authorDepartment: deptTitle,
+      dispatchCodeUsed: verifiedDispatchCodeRecord ? verifiedDispatchCodeRecord.code : void 0
     };
     io.emit("emergency_broadcast", broadcastPayload);
-    res.json({ message: "Emergency broadcast dispatched successfully", alert: broadcastPayload });
+    console.log(`\u{1F6A8} [Emergency Broadcast Dispatched] By ${broadcastPayload.author} (${broadcastPayload.authorRole}) - "${broadcastPayload.message}"`);
+    res.json({
+      message: "Emergency warning successfully broadcasted to all logged-in accounts across the civic mesh network.",
+      alert: broadcastPayload
+    });
   } catch (err) {
     res.status(500).json({ error: err.message || "Failed to send broadcast" });
   }

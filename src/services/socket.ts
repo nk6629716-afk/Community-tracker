@@ -65,3 +65,33 @@ export function subscribeToRealtimeReports(
     s.off('report.updated', handleUpdated);
   };
 }
+
+export interface EmergencyBroadcastPayload {
+  id: string;
+  message: string;
+  severity: 'high' | 'critical';
+  timestamp: string;
+  author: string;
+  authorRole: string;
+  authorEmail?: string;
+  authorDepartment?: string;
+  dispatchCodeUsed?: string;
+}
+
+export function subscribeToEmergencyBroadcast(
+  onBroadcast: (payload: EmergencyBroadcastPayload) => void
+): () => void {
+  const s = getSocket();
+
+  const handleBroadcast = (payload: EmergencyBroadcastPayload) => {
+    console.log('🚨 [Emergency Broadcast Received via Socket]:', payload);
+    if (onBroadcast) onBroadcast(payload);
+  };
+
+  s.on('emergency_broadcast', handleBroadcast);
+
+  return () => {
+    s.off('emergency_broadcast', handleBroadcast);
+  };
+}
+

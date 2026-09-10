@@ -239,15 +239,63 @@ export const api = {
     return data;
   },
 
-  async broadcastEmergency(message: string, severity: 'high' | 'critical' = 'high'): Promise<any> {
+  async broadcastEmergency(
+    message: string, 
+    severity: 'high' | 'critical' = 'high',
+    dispatchCode?: string
+  ): Promise<{ message: string; alert: any }> {
     const res = await fetch(apiUrl('/api/admin/broadcast'), {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ message, severity }),
+      body: JSON.stringify({ message, severity, dispatchCode }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to dispatch broadcast');
     return data;
+  },
+
+  async generateDispatchCode(note?: string): Promise<{
+    message: string;
+    code: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+    generatedBy: string;
+  }> {
+    const res = await fetch(apiUrl('/api/admin/dispatch-code/generate'), {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ note }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to generate dispatch authorization code');
+    return data;
+  },
+
+  async getDispatchCodes(): Promise<Array<{
+    code: string;
+    generatedBy: string;
+    generatedByUserId?: string;
+    createdAt: number;
+    expiresAt: number;
+    note?: string;
+    usedCount: number;
+  }>> {
+    const res = await fetch(apiUrl('/api/admin/dispatch-codes'), {
+      headers: getHeaders(),
+    });
+    if (!res.ok) throw new Error('Failed to fetch active dispatch codes');
+    return res.json();
+  },
+
+  async revokeDispatchCode(code: string): Promise<void> {
+    const res = await fetch(apiUrl(`/api/admin/dispatch-codes/${encodeURIComponent(code)}`), {
+      method: 'DELETE',
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Failed to revoke authorization code');
+    }
   },
 
   // Reports endpoints

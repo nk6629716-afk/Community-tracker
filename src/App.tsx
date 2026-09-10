@@ -10,10 +10,11 @@ import { Analytics } from './pages/Analytics';
 import { QuickQR } from './pages/QuickQR';
 import { Issue, AnalyticsData } from './types';
 import { api, AuthUser } from './services/api';
-import { subscribeToRealtimeReports } from './services/socket';
+import { subscribeToRealtimeReports, subscribeToEmergencyBroadcast, EmergencyBroadcastPayload } from './services/socket';
 import { CheckCircle2, Radio, Bell } from 'lucide-react';
 import { CitypulseCursor } from './components/common/CitypulseCursor';
 import { AuthModal } from './components/auth/AuthModal';
+import { EmergencyAlertModal } from './components/emergency/EmergencyAlertModal';
 import { CitizenDashboard } from './components/dashboard/CitizenDashboard';
 import { AuthorityDashboard } from './components/dashboard/AuthorityDashboard';
 import { CommunityTrackerBootScreen } from './components/loading/CommunityTrackerBootScreen';
@@ -27,6 +28,9 @@ export default function App() {
   const [showBootScreen, setShowBootScreen] = useState<boolean>(true);
   const [prefilledLocation, setPrefilledLocation] = useState<string | undefined>(undefined);
   const [notification, setNotification] = useState<string | null>(null);
+
+  // Realtime High-Priority Emergency Broadcast Alert Modal State
+  const [activeEmergencyAlert, setActiveEmergencyAlert] = useState<EmergencyBroadcastPayload | null>(null);
 
   // Authentication State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
@@ -97,7 +101,16 @@ export default function App() {
       },
     });
 
-    return () => unsubscribe();
+    // Realtime Emergency Broadcast Signal Subscription
+    const unsubBroadcast = subscribeToEmergencyBroadcast((payload) => {
+      console.log('⚡ [App] Emergency Broadcast Received:', payload);
+      setActiveEmergencyAlert(payload);
+    });
+
+    return () => {
+      unsubscribe();
+      unsubBroadcast();
+    };
   }, []);
 
   // Toast notification helper
@@ -336,6 +349,12 @@ export default function App() {
       {/* Footer with Civic Lifecycle Journey */}
       <Footer onReplayBoot={() => setShowBootScreen(true)} />
       </div>
+
+      {/* City-Wide Emergency Broadcast Modal Alert Overlay */}
+      <EmergencyAlertModal
+        alert={activeEmergencyAlert}
+        onClose={() => setActiveEmergencyAlert(null)}
+      />
 
       {/* Interactive Dual-Path Authentication Modal */}
       <AuthModal

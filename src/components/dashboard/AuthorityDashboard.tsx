@@ -69,6 +69,21 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   const [isCopiedCode, setIsCopiedCode] = useState(false);
   const [isGeneratingCode, setIsGeneratingCode] = useState<string | null>(null);
 
+  // 10-Minute Master Admin Dispatch Authorization State
+  const [dispatchCodeInput, setDispatchCodeInput] = useState('');
+  const [activeDispatchCodesList, setActiveDispatchCodesList] = useState<any[]>([]);
+  const [isLoadingDispatchCodes, setIsLoadingDispatchCodes] = useState(false);
+  const [isGeneratingDispatchCode, setIsGeneratingDispatchCode] = useState(false);
+  const [dispatchCodeNote, setDispatchCodeNote] = useState('');
+  const [latestGeneratedDispatchCode, setLatestGeneratedDispatchCode] = useState<{
+    code: string;
+    expiresAt: string;
+    expiresInSeconds: number;
+    generatedBy: string;
+  } | null>(null);
+  const [isCopiedDispatchCode, setIsCopiedDispatchCode] = useState(false);
+  const [nowTimestamp, setNowTimestamp] = useState<number>(Date.now());
+
   // Advanced Security & Admin Controls State
   const [broadcastMessage, setBroadcastMessage] = useState('');
   const [broadcastSeverity, setBroadcastSeverity] = useState<'high' | 'critical'>('high');
@@ -77,6 +92,22 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   const [directCodeIdentifier, setDirectCodeIdentifier] = useState('');
   const [activeResetCodesList, setActiveResetCodesList] = useState<any[]>([]);
   const [isLoadingCodes, setIsLoadingCodes] = useState(false);
+
+  // 1-second interval ticker for live countdown timers on 10-minute codes
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNowTimestamp(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTimeRemaining = (expiresAtMs: number) => {
+    const diff = Math.max(0, Math.floor((expiresAtMs - nowTimestamp) / 1000));
+    if (diff <= 0) return 'Expired';
+    const minutes = Math.floor(diff / 60);
+    const seconds = diff % 60;
+    return `${minutes}m ${seconds < 10 ? '0' : ''}${seconds}s`;
+  };
 
   // Incident state
   const [searchQuery, setSearchQuery] = useState('');
@@ -122,6 +153,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   // Load users automatically on mount
   useEffect(() => {
     fetchUsers();
+    fetchActiveDispatchCodes();
   }, []);
 
   // Fetch Active Developer Reset Codes
@@ -137,12 +169,26 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     }
   };
 
+  // Fetch Active 10-Minute Dispatch Codes
+  const fetchActiveDispatchCodes = async () => {
+    try {
+      setIsLoadingDispatchCodes(true);
+      const data = await api.getDispatchCodes();
+      setActiveDispatchCodesList(data);
+    } catch (err: any) {
+      console.warn('Failed to load active dispatch codes:', err);
+    } finally {
+      setIsLoadingDispatchCodes(false);
+    }
+  };
+
   useEffect(() => {
     if (tabMode === 'users' || tabMode === 'provision') {
       fetchUsers();
     }
     if (tabMode === 'security') {
       fetchActiveResetCodes();
+      fetchActiveDispatchCodes();
       fetchUsers();
     }
   }, [tabMode]);
@@ -168,19 +214,58 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     }
   };
 
+  // Handle 10-Minute Dispatch Code Generation (Master Admin Only)
+  const handleGenerateDispatchCode = async (note?: string) => {
+    try {
+      setIsGeneratingDispatchCode(true);
+      const res = await api.generateDispatchCode(note || dispatchCodeNote.trim() || undefined);
+      setLatestGeneratedDispatchCode(res);
+      setIsCopiedDispatchCode(false);
+      setDispatchCodeNote('');
+      await fetchActiveDispatchCodes();
+    } catch (err: any) {
+      alert(err.message || 'Failed to generate 10-minute dispatch authorization code');
+    } finally {
+      setIsGeneratingDispatchCode(false);
+    }
+  };
+
+  // Handle Revoking a Dispatch Code
+  const handleRevokeDispatchCode = async (code: string) => {
+    if (!window.confirm(`Revoke 10-minute authorization code "${code}"?`)) return;
+    try {
+      await api.revokeDispatchCode(code);
+      await fetchActiveDispatchCodes();
+    } catch (err: any) {
+      alert(err.message || 'Failed to revoke authorization code');
+    }
+  };
+
   // Handle Emergency Broadcast
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastMessage.trim()) return;
 
+    if (user.role === 'AUTHORITY' && !dispatchCodeInput.trim()) {
+      setBroadcastStatus('⚠️ Error: Municipal Officers must provide an active 10-minute Master Admin authorization code.');
+      return;
+    }
+
     try {
       setIsBroadcasting(true);
-      await api.broadcastEmergency(broadcastMessage.trim(), broadcastSeverity);
-      setBroadcastStatus('📡 Emergency broadcast transmitted live across the civic mesh.');
+      setBroadcastStatus(null);
+      await api.broadcastEmergency(
+        broadcastMessage.trim(), 
+        broadcastSeverity,
+        user.role === 'AUTHORITY' ? dispatchCodeInput.trim().toUpperCase() : undefined
+      );
+      setBroadcastStatus('📡 Emergency broadcast transmitted live across the civic mesh to every logged-in account!');
       setBroadcastMessage('');
-      setTimeout(() => setBroadcastStatus(null), 5000);
+      setDispatchCodeInput('');
+      fetchActiveDispatchCodes();
+      setTimeout(() => setBroadcastStatus(null), 7000);
     } catch (err: any) {
-      setBroadcastStatus(`Broadcast failed: ${err.message}`);
+      setBroadcastStatus(`Broadcast authorization failed: ${err.message}`);
     } finally {
       setIsBroadcasting(false);
     }
@@ -1123,22 +1208,93 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
         <div className="space-y-8 animate-fade-in">
           {/* Emergency Alert Dispatch Console */}
           <div className="glass-card rounded-3xl p-6 sm:p-8 border border-amber-500/30 bg-gradient-to-br from-amber-950/40 via-slate-900/60 to-orange-950/30 shadow-2xl">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                <Megaphone className="w-3.5 h-3.5 text-amber-400" />
-                <span>Civic Emergency Dispatch Terminal</span>
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                  <Megaphone className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Civic Emergency Dispatch Terminal</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-cyan-950 text-cyan-300 border border-cyan-700/50 flex items-center gap-1">
+                  <Radio className="w-2.5 h-2.5 animate-pulse" />
+                  <span>LIVE MESH SOCKET</span>
+                </span>
+              </div>
+
+              {/* Master Admin Direct Action or Municipal Officer Badge */}
+              {user.role === 'ADMIN' ? (
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-200 text-xs font-bold flex items-center gap-1.5">
+                    👑 Master Admin Direct Authority
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateDispatchCode()}
+                    disabled={isGeneratingDispatchCode}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-md disabled:opacity-50"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>{isGeneratingDispatchCode ? 'Generating...' : '+ Issue 10-Min Officer Code'}</span>
+                  </button>
+                </div>
+              ) : (
+                <span className="px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5">
+                  🛡️ Municipal Officer Clearance
+                </span>
+              )}
             </div>
+
             <h2 className="text-xl sm:text-2xl font-black text-white">
               City-Wide Incident Alert & Mesh Broadcast
             </h2>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1 mb-6">
-              Dispatch high-priority alert signals directly to all connected citizens and officers across real-time WebSockets.
+            <p className="text-xs sm:text-sm text-slate-300 mt-1 mb-5">
+              Dispatch high-priority alert signals directly to every account currently logged in across the real-time civic network.
             </p>
 
+            {/* Quick Master Admin Generated Code Callout (if just generated) */}
+            {latestGeneratedDispatchCode && user.role === 'ADMIN' && (
+              <div className="mb-5 p-4 rounded-2xl bg-gradient-to-r from-purple-950/70 via-slate-900/80 to-amber-950/70 border border-amber-400/50 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xl animate-fade-in">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold border border-amber-400/30">
+                    <Key className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-bold">10-Minute Officer Dispatch Passcode:</span>
+                      <span className="font-mono font-black text-amber-300 text-sm tracking-wider px-2 py-0.5 rounded bg-black/50 border border-amber-400/40">
+                        {latestGeneratedDispatchCode.code}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-slate-300">
+                      Share this code with Municipal Officers. Expires in{' '}
+                      <strong className="text-amber-400">
+                        {formatTimeRemaining(new Date(latestGeneratedDispatchCode.expiresAt).getTime())}
+                      </strong>.
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(latestGeneratedDispatchCode.code);
+                    setIsCopiedDispatchCode(true);
+                    setTimeout(() => setIsCopiedDispatchCode(false), 2000);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition border border-white/20 cursor-pointer self-start sm:self-auto"
+                >
+                  {isCopiedDispatchCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{isCopiedDispatchCode ? 'Copied to Clipboard' : 'Copy Code'}</span>
+                </button>
+              </div>
+            )}
+
             {broadcastStatus && (
-              <div className="mb-5 p-4 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs font-bold animate-fade-in flex items-center gap-2">
-                <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
+              <div className={`mb-5 p-4 rounded-xl text-xs font-bold animate-fade-in flex items-center gap-2 border ${
+                broadcastStatus.includes('failed') || broadcastStatus.includes('Error') || broadcastStatus.includes('Invalid')
+                  ? 'bg-red-500/20 border-red-400/40 text-red-200'
+                  : 'bg-emerald-500/20 border-emerald-400/40 text-emerald-200'
+              }`}>
+                <Radio className="w-4 h-4 animate-pulse shrink-0" />
                 <span>{broadcastStatus}</span>
               </div>
             )}
@@ -1158,7 +1314,31 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                 />
               </div>
 
-              <div className="flex flex-wrap items-center gap-4">
+              {/* Master Admin Authorization Code Field for Municipal Officers */}
+              {user.role === 'AUTHORITY' && (
+                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-amber-400" />
+                      <span>10-Minute Master Admin Authorization Code *</span>
+                    </label>
+                    <span className="text-[10px] text-amber-400/80 font-mono">10-MIN EXPIRY ENFORCED</span>
+                  </div>
+                  <input
+                    type="text"
+                    required
+                    value={dispatchCodeInput}
+                    onChange={(e) => setDispatchCodeInput(e.target.value.toUpperCase())}
+                    placeholder="Enter 10-Minute Code (e.g. CMD-842913)"
+                    className="glass-input w-full px-4 py-2.5 rounded-xl text-sm font-mono tracking-wider font-bold placeholder:font-normal placeholder:tracking-normal"
+                  />
+                  <p className="text-[11px] text-slate-400">
+                    Municipal Officers require a special 10-minute code exclusively generated from the Master Admin Dashboard.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-4 pt-2">
                 <div className="flex items-center gap-2">
                   <label className="text-xs font-semibold text-slate-400">Severity Tier:</label>
                   <select
@@ -1177,10 +1357,133 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                   className="btn-glass-primary px-6 py-2.5 rounded-xl text-xs font-bold text-white flex items-center gap-2 cursor-pointer shadow-lg ml-auto"
                 >
                   <Radio className="w-4 h-4 text-cyan-300 animate-pulse" />
-                  <span>{isBroadcasting ? 'Broadcasting Signal...' : 'Broadcast Across City Mesh'}</span>
+                  <span>{isBroadcasting ? 'Transmitting Signal...' : 'Broadcast Across City Mesh'}</span>
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* 10-MINUTE DISPATCH AUTHORIZATION CODE LEDGER (MASTER ADMIN & OFFICERS) */}
+          <div className="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <ShieldAlert className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-xl font-bold text-white">10-Minute Emergency Dispatch Clearance Ledger</h3>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Master Admin time-locked authorization codes (10 minutes validity) required for Municipal Officers to dispatch emergency alerts.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={fetchActiveDispatchCodes}
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-semibold flex items-center gap-1.5 transition border border-white/10 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDispatchCodes ? 'animate-spin' : ''}`} />
+                  <span>Refresh</span>
+                </button>
+
+                {user.role === 'ADMIN' && (
+                  <button
+                    onClick={() => handleGenerateDispatchCode()}
+                    disabled={isGeneratingDispatchCode}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-50"
+                  >
+                    <Key className="w-3.5 h-3.5" />
+                    <span>{isGeneratingDispatchCode ? 'Issuing...' : '+ Issue 10-Min Code'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Active Dispatch Codes Table */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  Active 10-Minute Dispatch Passcodes ({activeDispatchCodesList.length})
+                </span>
+                <span className="text-[10px] text-amber-400/80 font-mono">EXPIRES AFTER 10 MINUTES</span>
+              </div>
+
+              {isLoadingDispatchCodes ? (
+                <div className="p-8 text-center text-xs text-slate-400">Loading active dispatch clearance codes...</div>
+              ) : activeDispatchCodesList.length === 0 ? (
+                <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-slate-400">
+                  {user.role === 'ADMIN'
+                    ? 'No active 10-minute dispatch authorization codes currently live. Click "+ Issue 10-Min Code" above to grant temporary dispatch authority to Municipal Officers.'
+                    : 'No active 10-minute dispatch codes currently live. Please ask the Master Administrator to generate an authorization code from their dashboard.'}
+                </div>
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-white/10">
+                  <table className="w-full text-left text-xs text-slate-300">
+                    <thead className="bg-white/5 text-slate-400 uppercase text-[10px] font-bold border-b border-white/10">
+                      <tr>
+                        <th className="p-3">Authorization Code</th>
+                        <th className="p-3">Time Remaining</th>
+                        <th className="p-3">Generated By</th>
+                        <th className="p-3">Usage</th>
+                        <th className="p-3 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {activeDispatchCodesList.map((c) => {
+                        const timeLeft = formatTimeRemaining(c.expiresAt);
+                        const isExpired = timeLeft === 'Expired';
+                        return (
+                          <tr key={c.code} className="hover:bg-white/5 transition">
+                            <td className="p-3 font-mono font-bold text-amber-300 text-sm">
+                              {c.code}
+                            </td>
+                            <td className="p-3">
+                              <span className={`inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-full text-[11px] ${
+                                isExpired 
+                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' 
+                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                              }`}>
+                                <Clock className="w-3 h-3" />
+                                <span>{timeLeft}</span>
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-300">
+                              <span className="font-semibold text-white">{c.generatedBy}</span>
+                              {c.note && <span className="block text-[10px] text-slate-400">{c.note}</span>}
+                            </td>
+                            <td className="p-3 text-slate-400 font-mono text-[11px]">
+                              {c.usedCount > 0 ? `Used (${c.usedCount}x)` : 'Unused'}
+                            </td>
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(c.code);
+                                    alert(`Code "${c.code}" copied to clipboard!`);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-white font-semibold flex items-center gap-1 transition cursor-pointer text-[11px]"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  <span>Copy</span>
+                                </button>
+                                {user.role === 'ADMIN' && (
+                                  <button
+                                    onClick={() => handleRevokeDispatchCode(c.code)}
+                                    className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 font-semibold flex items-center gap-1 transition cursor-pointer text-[11px] border border-rose-500/30"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                    <span>Revoke</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Developer Verification Passcodes & Password Recovery Console */}
