@@ -191,10 +191,18 @@ export const EmergencyAlertModal: React.FC<EmergencyAlertModalProps> = ({ alert,
                   Dispatched By
                 </span>
                 <span className="font-bold text-white text-sm block">
-                  {(alert.author || 'Master Administrator (Nikhil)')
-                    .replace(/\(?nikhil11237y\)?/gi, '')
-                    .replace(/\s+/g, ' ')
-                    .trim() || 'Master Administrator (Nikhil)'}
+                  {(() => {
+                    const raw = alert.author || 'Master Administrator';
+                    const cleaned = raw
+                      .replace(/\(?\s*nikhil11237y\s*\)?/gi, '')
+                      .replace(/\([^)]*nikhil11237y[^)]*\)/gi, '')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+                    if (!cleaned || cleaned.toLowerCase().includes('master admin')) {
+                      return 'Master Administrator (Nikhil)';
+                    }
+                    return cleaned;
+                  })()}
                 </span>
                 <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-cyan-200 border border-white/10">
                   {alert.authorRole || '👑 Master Administrator'}

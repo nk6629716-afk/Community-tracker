@@ -81,6 +81,19 @@ function getHeaders(customHeaders?: Record<string, string>): HeadersInit {
   return headers;
 }
 
+function sanitizeUser(user: AuthUser): AuthUser {
+  if (!user) return user;
+  const cleanName = (user.name || '')
+    .replace(/\(?\s*nikhil11237y\s*\)?/gi, '')
+    .replace(/\([^)]*nikhil11237y[^)]*\)/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return {
+    ...user,
+    name: cleanName || (user.role === 'ADMIN' ? 'Master Administrator (Nikhil)' : 'Authorized User'),
+  };
+}
+
 export const api = {
   // Auth endpoints
   async signup(payload: {
@@ -102,6 +115,7 @@ export const api = {
       throw new Error(data.error || 'Registration failed');
     }
     setAuthToken(data.token);
+    if (data.user) data.user = sanitizeUser(data.user);
     return data;
   },
 
@@ -120,6 +134,7 @@ export const api = {
       throw new Error(data.error || 'Authentication failed');
     }
     setAuthToken(data.token);
+    if (data.user) data.user = sanitizeUser(data.user);
     return data;
   },
 
@@ -136,7 +151,7 @@ export const api = {
         return null;
       }
       const data = await res.json();
-      return data.user;
+      return data.user ? sanitizeUser(data.user) : null;
     } catch {
       return null;
     }
