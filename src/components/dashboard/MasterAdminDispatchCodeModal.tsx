@@ -60,7 +60,7 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
           </div>
           <h3 className="text-lg font-bold text-white">Master Admin Access Required</h3>
           <p className="text-xs text-slate-300">
-            This 10-minute dispatch code generator dialogue is restricted exclusively to Master Admin Nikhil (Nikhil11237y).
+            This 10-minute dispatch code generator dialogue is restricted exclusively to Master Administrators.
           </p>
           <button onClick={onClose} className="btn-glass-primary px-6 py-2 rounded-xl text-xs font-bold text-white w-full">
             Close
@@ -136,7 +136,7 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">
                   MASTER ADMIN EXCLUSIVE
                 </span>
-                <span className="text-[11px] text-purple-300 font-mono">AUTHORIZED: Nikhil11237y</span>
+                <span className="text-[11px] text-purple-300 font-mono">SUPREME CIVIC AUTHORITY</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
                 10-Minute Officer Dispatch Code Generator
@@ -324,7 +324,7 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
 
         {/* Footer */}
         <div className="pt-2 flex items-center justify-between text-xs text-slate-400 border-t border-white/10">
-          <span>Master Authority: Nikhil11237y</span>
+          <span>Master Administrator Clearance Verified</span>
           <button
             onClick={onClose}
             className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition cursor-pointer"

@@ -437,7 +437,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                 title="Open Master Admin 10-Minute Dispatch Code Generation Dialogue"
               >
                 <Key className="w-4 h-4 text-slate-950 animate-pulse" />
-                <span>👑 Master Admin Passcode Terminal (Nikhil11237y)</span>
+                <span>👑 Master Admin Passcode Terminal</span>
               </button>
             )}
 
@@ -1240,7 +1240,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               {isMasterAdmin ? (
                 <div className="flex items-center gap-2">
                   <span className="px-3 py-1 rounded-xl bg-purple-500/20 border border-purple-400/40 text-purple-200 text-xs font-bold flex items-center gap-1.5">
-                    👑 Master Admin Direct Authority (Nikhil11237y)
+                    👑 Master Admin Direct Authority
                   </span>
                   <button
                     type="button"

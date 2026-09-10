@@ -1123,7 +1123,7 @@ app.post("/api/auth/login", async (req, res) => {
       const masterUser = {
         id: "admin_master_001",
         email: "admin@citypulse.gov",
-        name: "Master Admin Nikhil (Nikhil11237y)",
+        name: "Master Administrator (Nikhil)",
         role: "ADMIN",
         area: "Supreme City Command"
       };
@@ -1184,7 +1184,7 @@ app.get("/api/auth/me", async (req, res) => {
       user: {
         id: "admin_master_001",
         email: "admin@citypulse.gov",
-        name: "Master Admin Nikhil (Nikhil11237y)",
+        name: "Master Administrator (Nikhil)",
         role: "ADMIN",
         area: "Supreme City Command"
       }
@@ -1405,7 +1405,7 @@ app.post("/api/admin/dispatch-code/generate", requireAdminOrAuthority, async (re
     const currentUser = req.user;
     if (currentUser.role !== "ADMIN" && currentUser.id !== "admin_master_001" && currentUser.userId !== "admin_master_001") {
       return res.status(403).json({
-        error: "Exclusive Authority: Only Master Administrators (Nikhil11237y) can generate 10-minute Emergency Dispatch Codes."
+        error: "Exclusive Authority: Only Master Administrators can generate 10-minute Emergency Dispatch Codes."
       });
     }
     const { assignedEmail, note } = req.body || {};
