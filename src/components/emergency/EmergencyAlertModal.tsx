@@ -7,7 +7,8 @@ import {
   Clock, 
   UserCheck, 
   Building2, 
-  KeyRound
+  KeyRound,
+  ShieldCheck
 } from 'lucide-react';
 import { EmergencyBroadcastPayload } from '../../services/socket';
 
@@ -208,16 +209,10 @@ export const EmergencyAlertModal: React.FC<EmergencyAlertModalProps> = ({ alert,
                 <span className="font-medium text-slate-200 block text-xs truncate">
                   {alert.authorDepartment || 'Executive City Operations Division'}
                 </span>
-                {alert.dispatchCodeUsed ? (
-                  <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                    <KeyRound className="w-2.5 h-2.5" />
-                    <span>Auth Code: {alert.dispatchCodeUsed}</span>
-                  </span>
-                ) : (
-                  <span className="inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30">
-                    👑 Master Admin Executive Clearance
-                  </span>
-                )}
+                <span className="inline-flex items-center gap-1 mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30">
+                  <ShieldCheck className="w-3 h-3 text-purple-300" />
+                  <span>Verified Executive Clearance</span>
+                </span>
               </div>
             </div>
           </div>

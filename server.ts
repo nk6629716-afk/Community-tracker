@@ -670,8 +670,9 @@ app.post('/api/admin/broadcast', requireAdminOrAuthority, (req, res) => {
         });
       }
 
-      // Valid 10-minute code
-      codeRecord.usedCount = (codeRecord.usedCount || 0) + 1;
+      // Valid 10-minute code: Consume and expire immediately after single use
+      activeDispatchCodes.delete(cleanCode);
+      console.log(`🔑 [Dispatch Code Expired Immediately] Code ${cleanCode} consumed by ${currentUser.name}`);
       verifiedDispatchCodeRecord = codeRecord;
     } else {
       return res.status(403).json({ error: 'Unauthorized: Citizen accounts cannot dispatch civic emergency signals.' });
@@ -689,7 +690,7 @@ app.post('/api/admin/broadcast', requireAdminOrAuthority, (req, res) => {
       authorRole: roleTitle,
       authorEmail: currentUser.email || '',
       authorDepartment: deptTitle,
-      dispatchCodeUsed: verifiedDispatchCodeRecord ? verifiedDispatchCodeRecord.code : undefined,
+      isAuthorizedDispatch: true,
     };
 
     // Emit live WebSocket event to ALL connected accounts/browsers
@@ -697,7 +698,7 @@ app.post('/api/admin/broadcast', requireAdminOrAuthority, (req, res) => {
     console.log(`🚨 [Emergency Broadcast Dispatched] By ${broadcastPayload.author} (${broadcastPayload.authorRole}) - "${broadcastPayload.message}"`);
 
     res.json({ 
-      message: 'Emergency warning successfully broadcasted to all logged-in accounts across the civic mesh network.', 
+      message: 'Emergency warning successfully broadcasted to all logged-in accounts across the civic mesh network. Passcode expired immediately.', 
       alert: broadcastPayload 
     });
   } catch (err: any) {
