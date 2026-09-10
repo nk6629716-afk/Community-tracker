@@ -254,9 +254,11 @@ export const api = {
     return data;
   },
 
-  async generateDispatchCode(note?: string): Promise<{
+  async generateDispatchCode(assignedEmail: string, note?: string): Promise<{
     message: string;
     code: string;
+    assignedToEmail: string;
+    assignedToName?: string;
     expiresAt: string;
     expiresInSeconds: number;
     generatedBy: string;
@@ -264,7 +266,7 @@ export const api = {
     const res = await fetch(apiUrl('/api/admin/dispatch-code/generate'), {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({ assignedEmail, note }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to generate dispatch authorization code');
@@ -273,6 +275,8 @@ export const api = {
 
   async getDispatchCodes(): Promise<Array<{
     code: string;
+    assignedToEmail: string;
+    assignedToName?: string;
     generatedBy: string;
     generatedByUserId?: string;
     createdAt: number;

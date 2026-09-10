@@ -32,10 +32,13 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
   onRefreshCodes,
   nowTimestamp,
 }) => {
+  const [assignedEmail, setAssignedEmail] = useState('authority@citypulse.gov');
   const [note, setNote] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [latestCode, setLatestCode] = useState<{
     code: string;
+    assignedToEmail: string;
+    assignedToName?: string;
     expiresAt: string;
     expiresInSeconds: number;
     generatedBy: string;
@@ -77,10 +80,15 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
 
   const handleGenerate = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!assignedEmail.trim()) {
+      setErrorMsg('Please enter the registered email address of the Municipal Officer.');
+      return;
+    }
+
     try {
       setIsGenerating(true);
       setErrorMsg(null);
-      const res = await api.generateDispatchCode(note.trim() || undefined);
+      const res = await api.generateDispatchCode(assignedEmail.trim().toLowerCase(), note.trim() || undefined);
       setLatestCode(res);
       setIsCopied(false);
       setNote('');
@@ -146,9 +154,9 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
         </div>
 
         <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-          Municipal Officers cannot broadcast city-wide emergency alerts directly. Generate a 
-          <strong className="text-amber-300"> 10-minute time-locked authorization passcode </strong> 
-          below to grant temporary emergency broadcast clearance.
+          Municipal Officers cannot broadcast city-wide alerts directly. Issue a 
+          <strong className="text-amber-300"> 10-minute single-use passcode </strong> 
+          assigned <strong className="text-cyan-300">exclusively to the officer's registered email</strong>. The code will only be visible to that designated officer and will expire immediately upon dispatch.
         </p>
 
         {errorMsg && (
@@ -161,13 +169,30 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
         <form onSubmit={handleGenerate} className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-4">
           <div>
             <label className="block text-xs font-bold text-slate-300 mb-1">
-              Squad / Officer Assignment (Optional Note):
+              Recipient Municipal Officer Registered Email *
+            </label>
+            <input
+              type="email"
+              required
+              value={assignedEmail}
+              onChange={(e) => setAssignedEmail(e.target.value)}
+              placeholder="e.g. authority@citypulse.gov"
+              className="glass-input w-full px-4 py-2.5 rounded-xl text-xs"
+            />
+            <span className="text-[11px] text-slate-400 block mt-1">
+              Only the account registered with this email will be able to see and use this authorization code.
+            </span>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-300 mb-1">
+              Squad / Mission Note (Optional):
             </label>
             <input
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="e.g. Authorized for Sector 4 flood response unit / Officer Sarah"
+              placeholder="e.g. Flash Flood Unit Sector 4 Dispatch"
               className="glass-input w-full px-4 py-2.5 rounded-xl text-xs"
             />
           </div>
@@ -178,7 +203,7 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
             className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-purple-600 hover:from-amber-400 hover:to-purple-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-amber-500/20 disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4 text-slate-950" />
-            <span>{isGenerating ? 'Generating 10-Minute Clearance...' : '⚡ Generate 10-Minute Authorization Code'}</span>
+            <span>{isGenerating ? 'Generating Exclusive Clearance...' : '⚡ Issue 10-Minute Authorization Code'}</span>
           </button>
         </form>
 
@@ -200,8 +225,11 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
                 <span className="font-mono text-2xl sm:text-3xl font-black text-amber-300 tracking-widest block">
                   {latestCode.code}
                 </span>
-                <span className="text-[11px] text-slate-400 mt-0.5 block">
-                  Valid for 10 minutes from issuance • Single or multi-squad dispatch
+                <span className="text-[11px] text-slate-300 mt-1 block">
+                  👤 Assigned Exclusively to: <strong className="text-cyan-300">{latestCode.assignedToName || latestCode.assignedToEmail}</strong> ({latestCode.assignedToEmail})
+                </span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  Single-use only • Expires automatically immediately upon dispatch or after 10 minutes
                 </span>
               </div>
 
@@ -243,7 +271,7 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
 
           {activeCodes.length === 0 ? (
             <div className="p-6 rounded-xl bg-white/5 border border-white/10 text-center text-xs text-slate-400">
-              No active 10-minute dispatch codes currently live. Use the generator above to issue a temporary passcode for Municipal Officers.
+              No active 10-minute dispatch codes currently live. Use the generator above to issue a temporary passcode for a specific Municipal Officer.
             </div>
           ) : (
             <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
@@ -262,7 +290,10 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
                       }`}>
                         {timeLeft}
                       </span>
-                      {c.note && <span className="text-[11px] text-slate-400 truncate max-w-[150px]">{c.note}</span>}
+                      <div className="text-[11px] text-slate-300">
+                        <span className="text-cyan-300 font-semibold">{c.assignedToEmail}</span>
+                        {c.note && <span className="text-[10px] text-slate-400 block">{c.note}</span>}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2">

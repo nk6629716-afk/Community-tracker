@@ -1400,32 +1400,49 @@ app.get("/api/admin/reset-codes", requireAdminOrAuthority, (req, res) => {
   }
   res.json(validCodes);
 });
-app.post("/api/admin/dispatch-code/generate", requireAdminOrAuthority, (req, res) => {
+app.post("/api/admin/dispatch-code/generate", requireAdminOrAuthority, async (req, res) => {
   try {
     const currentUser = req.user;
-    if (currentUser.role !== "ADMIN") {
+    if (currentUser.role !== "ADMIN" && currentUser.id !== "admin_master_001" && currentUser.userId !== "admin_master_001") {
       return res.status(403).json({
-        error: "Exclusive Authority: Only Master Administrators can generate 10-minute Emergency Dispatch Codes."
+        error: "Exclusive Authority: Only Master Administrators (Nikhil11237y) can generate 10-minute Emergency Dispatch Codes."
       });
     }
-    const { note } = req.body || {};
+    const { assignedEmail, note } = req.body || {};
+    if (!assignedEmail || !String(assignedEmail).trim()) {
+      return res.status(400).json({ error: "Officer registered email is required to assign this dispatch code." });
+    }
+    const normalizedAssignedEmail = String(assignedEmail).trim().toLowerCase();
+    let recipientUser = await dataService.findUserByEmail(normalizedAssignedEmail);
+    if (!recipientUser) {
+      recipientUser = await dataService.findUserById(normalizedAssignedEmail);
+    }
+    if (!recipientUser) {
+      return res.status(404).json({
+        error: `No registered account found for email "${assignedEmail}". The code must be assigned to a valid registered officer email.`
+      });
+    }
     const randomCode = `CMD-${Math.floor(1e5 + Math.random() * 9e5)}`;
     const now = Date.now();
     const expiresAt = now + 10 * 60 * 1e3;
     const record = {
       code: randomCode,
       generatedBy: currentUser.name || "Master Administrator",
-      generatedByUserId: currentUser.id,
+      generatedByUserId: currentUser.id || currentUser.userId,
+      assignedToEmail: recipientUser.email.toLowerCase().trim(),
+      assignedToName: recipientUser.name,
       createdAt: now,
       expiresAt,
-      note: note ? String(note).trim() : "Municipal Officer 10-Min Broadcast Authority",
+      note: note ? String(note).trim() : `Issued to Officer ${recipientUser.name}`,
       usedCount: 0
     };
     activeDispatchCodes.set(randomCode, record);
-    console.log(`\u{1F511} [Dispatch Code Generated] ${randomCode} by ${currentUser.name} (Expires in 10 mins)`);
+    console.log(`\u{1F511} [Dispatch Code Generated] ${randomCode} assigned exclusively to ${record.assignedToEmail} (${record.assignedToName}) - Expires in 10 mins`);
     res.json({
-      message: "10-minute dispatch authorization code generated successfully.",
+      message: `10-minute dispatch authorization code generated exclusively for ${recipientUser.name} (${recipientUser.email}).`,
       code: randomCode,
+      assignedToEmail: record.assignedToEmail,
+      assignedToName: record.assignedToName,
       expiresAt: new Date(expiresAt).toISOString(),
       expiresInSeconds: 600,
       generatedBy: record.generatedBy
@@ -1435,11 +1452,16 @@ app.post("/api/admin/dispatch-code/generate", requireAdminOrAuthority, (req, res
   }
 });
 app.get("/api/admin/dispatch-codes", requireAdminOrAuthority, (req, res) => {
+  const currentUser = req.user;
   const now = Date.now();
   const validCodes = [];
+  const isMaster = currentUser.role === "ADMIN" || currentUser.id === "admin_master_001" || currentUser.userId === "admin_master_001";
+  const officerEmail = (currentUser.email || "").toLowerCase().trim();
   for (const [code, record] of activeDispatchCodes.entries()) {
     if (record.expiresAt > now) {
-      validCodes.push(record);
+      if (isMaster || record.assignedToEmail === officerEmail) {
+        validCodes.push(record);
+      }
     } else {
       activeDispatchCodes.delete(code);
     }
@@ -1449,7 +1471,8 @@ app.get("/api/admin/dispatch-codes", requireAdminOrAuthority, (req, res) => {
 });
 app.delete("/api/admin/dispatch-codes/:code", requireAdminOrAuthority, (req, res) => {
   const currentUser = req.user;
-  if (currentUser.role !== "ADMIN") {
+  const isMaster = currentUser.role === "ADMIN" || currentUser.id === "admin_master_001" || currentUser.userId === "admin_master_001";
+  if (!isMaster) {
     return res.status(403).json({ error: "Only Master Administrators can revoke dispatch authorization codes." });
   }
   const code = req.params.code;
@@ -1467,7 +1490,8 @@ app.post("/api/admin/broadcast", requireAdminOrAuthority, (req, res) => {
       return res.status(400).json({ error: "Broadcast message is required." });
     }
     let verifiedDispatchCodeRecord;
-    if (currentUser.role === "ADMIN") {
+    const isMaster = currentUser.role === "ADMIN" || currentUser.id === "admin_master_001" || currentUser.userId === "admin_master_001";
+    if (isMaster) {
     } else if (currentUser.role === "AUTHORITY") {
       if (!dispatchCode || !String(dispatchCode).trim()) {
         return res.status(403).json({
@@ -1487,8 +1511,15 @@ app.post("/api/admin/broadcast", requireAdminOrAuthority, (req, res) => {
           requiresCode: true
         });
       }
+      const callerEmail = (currentUser.email || "").toLowerCase().trim();
+      if (codeRecord.assignedToEmail && codeRecord.assignedToEmail !== callerEmail) {
+        return res.status(403).json({
+          error: `Authorization Mismatch: This authorization passcode was assigned specifically to "${codeRecord.assignedToEmail}". You cannot use codes issued to other officers.`,
+          requiresCode: true
+        });
+      }
       activeDispatchCodes.delete(cleanCode);
-      console.log(`\u{1F511} [Dispatch Code Expired Immediately] Code ${cleanCode} consumed by ${currentUser.name}`);
+      console.log(`\u{1F511} [Dispatch Code Expired Immediately] Code ${cleanCode} consumed by ${currentUser.name} (${callerEmail})`);
       verifiedDispatchCodeRecord = codeRecord;
     } else {
       return res.status(403).json({ error: "Unauthorized: Citizen accounts cannot dispatch civic emergency signals." });

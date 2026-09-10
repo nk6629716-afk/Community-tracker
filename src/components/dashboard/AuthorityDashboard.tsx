@@ -1331,14 +1331,41 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
 
               {/* Master Admin Authorization Code Field for Municipal Officers */}
               {user.role === 'AUTHORITY' && (
-                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-2">
+                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/30 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
                       <Key className="w-3.5 h-3.5 text-amber-400" />
                       <span>10-Minute Master Admin Authorization Code *</span>
                     </label>
-                    <span className="text-[10px] text-amber-400/80 font-mono">10-MIN EXPIRY ENFORCED</span>
+                    <span className="text-[10px] text-amber-400/80 font-mono">EXCLUSIVELY BOUND TO {user.email}</span>
                   </div>
+
+                  {/* Personal active code banner if issued to this officer */}
+                  {activeDispatchCodesList.length > 0 && (
+                    <div className="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/50 text-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-in shadow-inner">
+                      <div className="flex items-center gap-2">
+                        <Key className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
+                        <div>
+                          <span className="block font-bold text-emerald-300">
+                            Active clearance code issued to your email ({user.email}):
+                          </span>
+                          <span className="text-[11px] text-emerald-400/90 font-mono">
+                            Code: <strong className="text-white text-xs">{activeDispatchCodesList[0].code}</strong> • Expires in{' '}
+                            {formatTimeRemaining(activeDispatchCodesList[0].expiresAt)} • Single-use
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setDispatchCodeInput(activeDispatchCodesList[0].code)}
+                        className="px-3 py-1.5 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-200 font-bold text-[11px] border border-emerald-400/50 transition cursor-pointer self-start sm:self-auto"
+                      >
+                        Auto-Fill Code
+                      </button>
+                    </div>
+                  )}
+
                   <input
                     type="text"
                     required
@@ -1348,7 +1375,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                     className="glass-input w-full px-4 py-2.5 rounded-xl text-sm font-mono tracking-wider font-bold placeholder:font-normal placeholder:tracking-normal"
                   />
                   <p className="text-[11px] text-slate-400">
-                    Municipal Officers require a special 10-minute code exclusively generated from the Master Admin Dashboard.
+                    This single-use code is exclusively valid for your registered email (<strong>{user.email}</strong>) and expires immediately upon broadcast.
                   </p>
                 </div>
               )}
