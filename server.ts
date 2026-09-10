@@ -720,15 +720,24 @@ app.post('/api/admin/broadcast', requireAdminOrAuthority, (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: Citizen accounts cannot dispatch civic emergency signals.' });
     }
 
-    const roleTitle = currentUser.role === 'ADMIN' ? '👑 Master Administrator' : '🛡️ Municipal Operations Officer';
-    const deptTitle = currentUser.area || (currentUser.role === 'ADMIN' ? 'Executive Civic Command' : 'Municipal Operations Division');
+    const roleTitle = isMaster ? '👑 Master Administrator' : '🛡️ Municipal Operations Officer';
+    const deptTitle = currentUser.area || (isMaster ? 'Executive Civic Command' : 'Municipal Operations Division');
+
+    let cleanAuthorName = (currentUser.name || 'City Operations Command')
+      .replace(/\(?nikhil11237y\)?/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (isMaster) {
+      cleanAuthorName = 'Master Administrator (Nikhil)';
+    }
 
     const broadcastPayload = {
       id: `alert-${Date.now()}`,
       message: String(message).trim(),
       severity: severity === 'critical' ? 'critical' : 'high',
       timestamp: new Date().toISOString(),
-      author: currentUser.name || 'City Operations Command',
+      author: cleanAuthorName || 'Master Administrator (Nikhil)',
       authorRole: roleTitle,
       authorEmail: currentUser.email || '',
       authorDepartment: deptTitle,
