@@ -28,6 +28,7 @@ export function getSocket(): Socket {
 export type RealtimeReportCallbacks = {
   onReportCreated?: (report: Issue) => void;
   onReportUpdated?: (report: Issue) => void;
+  onReportDeleted?: (payload: { id: string; deletedBy?: string; deletedByRole?: string; reason?: string }) => void;
 };
 
 export function subscribeToRealtimeReports(
@@ -38,6 +39,7 @@ export function subscribeToRealtimeReports(
 
   let onCreated: ((report: Issue) => void) | undefined;
   let onUpdated: ((report: Issue) => void) | undefined;
+  let onDeleted: (((payload: { id: string; deletedBy?: string; deletedByRole?: string; reason?: string }) => void) | undefined);
 
   if (typeof callbacksOrOnCreated === 'function') {
     onCreated = callbacksOrOnCreated;
@@ -45,6 +47,7 @@ export function subscribeToRealtimeReports(
   } else {
     onCreated = callbacksOrOnCreated.onReportCreated;
     onUpdated = callbacksOrOnCreated.onReportUpdated;
+    onDeleted = callbacksOrOnCreated.onReportDeleted;
   }
 
   const handleCreated = (newReport: Issue) => {
@@ -57,12 +60,19 @@ export function subscribeToRealtimeReports(
     if (onUpdated) onUpdated(updatedReport);
   };
 
+  const handleDeleted = (payload: { id: string; deletedBy?: string; deletedByRole?: string; reason?: string }) => {
+    console.log('🗑️ [Realtime Event] report.deleted received:', payload.id);
+    if (onDeleted) onDeleted(payload);
+  };
+
   s.on('report.created', handleCreated);
   s.on('report.updated', handleUpdated);
+  s.on('report.deleted', handleDeleted);
 
   return () => {
     s.off('report.created', handleCreated);
     s.off('report.updated', handleUpdated);
+    s.off('report.deleted', handleDeleted);
   };
 }
 

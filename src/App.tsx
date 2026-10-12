@@ -99,6 +99,12 @@ export default function App() {
         showToast(`⚡ Incident Updated: "${updatedReport.title}" is now ${updatedReport.status.replace('_', ' ').toUpperCase()}`);
         api.getAnalytics().then(setAnalytics).catch(() => {});
       },
+      onReportDeleted: ({ id, reason }) => {
+        setIssues((prev) => prev.filter((i) => i.id !== id));
+        setSelectedIssue((prev) => (prev && prev.id === id ? null : prev));
+        showToast(`🗑️ Report Purged: False report removed following manual inspection.`);
+        api.getAnalytics().then(setAnalytics).catch(() => {});
+      },
     });
 
     // Realtime Emergency Broadcast Signal Subscription
@@ -283,6 +289,12 @@ export default function App() {
               issues={issues}
               onSelectIssue={handleSelectIssue}
               onRefresh={loadData}
+              onIssueDeleted={(deletedId) => {
+                setIssues((prev) => prev.filter((i) => i.id !== deletedId));
+                if (selectedIssue?.id === deletedId) {
+                  setSelectedIssue(null);
+                }
+              }}
             />
           ) : (
             <div className="glass-card rounded-3xl p-12 text-center border border-cyan-500/30 max-w-md mx-auto my-12 space-y-4">
@@ -329,6 +341,11 @@ export default function App() {
             onBack={() => handleNavigate('reports')}
             isAuthorityMode={currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN'}
             onIssueUpdated={handleIssueUpdated}
+            onIssueDeleted={(deletedId) => {
+              setIssues((prev) => prev.filter((i) => i.id !== deletedId));
+              setSelectedIssue(null);
+              handleNavigate('reports');
+            }}
           />
         )}
 

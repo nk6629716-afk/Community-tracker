@@ -49,6 +49,7 @@ interface AuthorityDashboardProps {
   issues: Issue[];
   onSelectIssue: (issue: Issue) => void;
   onRefresh?: () => void;
+  onIssueDeleted?: (deletedId: string) => void;
 }
 
 export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
@@ -56,6 +57,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   issues,
   onSelectIssue,
   onRefresh,
+  onIssueDeleted,
 }) => {
   // Navigation between Incident Management, User Management, Officer Provisioning, and Advanced Controls
   const [tabMode, setTabMode] = useState<'incidents' | 'users' | 'provision' | 'security'>('incidents');
@@ -126,6 +128,12 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
   const [isUpdating, setIsUpdating] = useState(false);
   const [viewMode, setViewMode] = useState<'queue' | 'map'>('queue');
   const [updateFeedback, setUpdateFeedback] = useState<string | null>(null);
+
+  // False Report Deletion State (Exclusively for Municipal Officers & Master Admin)
+  const [reportToDelete, setReportToDelete] = useState<Issue | null>(null);
+  const [deleteReason, setDeleteReason] = useState('Ground physical inspection completed: False report / No hazard detected on site.');
+  const [isDeletingReport, setIsDeletingReport] = useState(false);
+  const [deleteErrorMessage, setDeleteErrorMessage] = useState<string | null>(null);
 
   // User & Officer Management State
   const [users, setUsers] = useState<AuthUser[]>([]);
@@ -406,6 +414,36 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
       setUpdateFeedback(err.message || 'Failed to update status');
     } finally {
       setIsUpdating(false);
+    }
+  };
+
+  // Handle Purging False Report after Ground Physical Inspection (Officers & Master Admin)
+  const handleDeleteReport = async () => {
+    if (!reportToDelete) return;
+    try {
+      setIsDeletingReport(true);
+      setDeleteErrorMessage(null);
+      await api.deleteReport(reportToDelete.id, deleteReason.trim() || undefined);
+      const deletedId = reportToDelete.id;
+      setReportToDelete(null);
+
+      // Advance active issue if currently selected
+      if (activeIssue?.id === deletedId) {
+        const remaining = issues.filter((i) => i.id !== deletedId);
+        setActiveIssue(remaining[0] || null);
+      }
+
+      if (onIssueDeleted) {
+        onIssueDeleted(deletedId);
+      }
+      if (onRefresh) {
+        onRefresh();
+      }
+    } catch (err: any) {
+      console.error('Failed to delete false report:', err);
+      setDeleteErrorMessage(err.message || 'Failed to delete false report. Official authorization required.');
+    } finally {
+      setIsDeletingReport(false);
     }
   };
 
@@ -1062,11 +1100,28 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                             </div>
                           </div>
 
-                          <ChevronRight
-                            className={`w-5 h-5 text-slate-500 transition-transform ${
-                              isSelected ? 'rotate-90 text-cyan-400' : ''
-                            }`}
-                          />
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {(user.role === 'AUTHORITY' || user.role === 'ADMIN') && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setDeleteReason('Ground physical inspection completed: False report / No hazard detected on site.');
+                                  setDeleteErrorMessage(null);
+                                  setReportToDelete(issue);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/15 transition cursor-pointer"
+                                title="Delete false report after manual inspection (Officials & Admin only)"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <ChevronRight
+                              className={`w-5 h-5 text-slate-500 transition-transform ${
+                                isSelected ? 'rotate-90 text-cyan-400' : ''
+                              }`}
+                            />
+                          </div>
                         </div>
 
                         <div className="mt-3 pt-3 border-t border-white/5 flex items-center justify-between text-xs text-slate-500">
@@ -1214,6 +1269,34 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                       <span>{isUpdating ? 'Updating Status...' : 'Mark Complaint Done / Resolved'}</span>
                     </button>
                   </div>
+
+                  {/* False Report Removal - Strictly for Municipal Officers & Master Admin */}
+                  {(user.role === 'AUTHORITY' || user.role === 'ADMIN') && (
+                    <div className="pt-3 border-t border-white/10 space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <span className="font-semibold text-rose-300 flex items-center gap-1">
+                          <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                          <span>Field Verification & Integrity Control</span>
+                        </span>
+                        <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-rose-950 text-rose-300 border border-rose-800/50">
+                          Officials & Admin Only
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDeleteReason('Ground physical inspection completed: False report / No hazard detected on site.');
+                          setDeleteErrorMessage(null);
+                          setReportToDelete(activeIssue);
+                        }}
+                        className="w-full p-3 rounded-xl text-xs font-bold border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 hover:text-white transition cursor-pointer flex items-center justify-center gap-2 group shadow-sm hover:border-rose-400"
+                        title="Delete false or spurious report after manual physical inspection"
+                      >
+                        <Trash2 className="w-4 h-4 text-rose-400 group-hover:scale-110 transition-transform" />
+                        <span>Delete False Report (Manual Inspection Verified)</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1806,6 +1889,106 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
         nowTimestamp={nowTimestamp}
         officers={users.filter((u) => u.role === 'AUTHORITY' || u.role === 'ADMIN')}
       />
+
+      {/* Delete False Report Modal - Exclusively for Municipal Officers & Master Admin */}
+      {reportToDelete && (user.role === 'AUTHORITY' || user.role === 'ADMIN') && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="glass-card rounded-2xl max-w-lg w-full p-6 space-y-4 border border-rose-500/40 bg-slate-900/95 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2 text-rose-400">
+                <ShieldAlert className="w-5 h-5" />
+                <h3 className="text-base font-bold text-white">
+                  Delete False Report (Manual Inspection)
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportToDelete(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-500/30 text-rose-200 text-xs space-y-1">
+              <p className="font-bold">⚠️ Irreversible Field Purge Action</p>
+              <p className="text-slate-300 text-[11px]">
+                Authorized for <strong>{user.name} ({user.role})</strong>. This will permanently remove Ticket <strong>{getTicketId(reportToDelete)}</strong> from public civic queues, database, and live mesh socket feed after field verification confirms no hazard exists.
+              </p>
+            </div>
+
+            <div className="space-y-1 bg-white/5 p-3 rounded-xl border border-white/10 text-xs">
+              <div className="font-semibold text-white truncate">{reportToDelete.title}</div>
+              <div className="text-slate-400 truncate text-[11px]">📍 {reportToDelete.address}</div>
+              <div className="text-slate-500 text-[11px]">Reported by: {reportToDelete.created_by}</div>
+            </div>
+
+            {deleteErrorMessage && (
+              <div className="p-2.5 rounded-xl bg-red-950/60 border border-red-500/40 text-red-300 text-xs">
+                {deleteErrorMessage}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-300">
+                Manual Inspection Finding / Justification *
+              </label>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'Ground physical inspection: No defect or hazard on site',
+                  'Fabricated / spurious citizen submission',
+                  'Inauthentic / irrelevant photograph attachment',
+                  'Duplicate report / resolved earlier',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setDeleteReason(preset)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] transition cursor-pointer border ${
+                      deleteReason === preset
+                        ? 'bg-rose-500/30 border-rose-400/60 text-rose-200 font-bold'
+                        : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                rows={2}
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Enter field inspection findings or officer notes..."
+                className="w-full p-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-400/50 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                disabled={isDeletingReport}
+                onClick={() => setReportToDelete(null)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeletingReport}
+                onClick={handleDeleteReport}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeletingReport ? 'Purging Report...' : 'Confirm & Delete False Report'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

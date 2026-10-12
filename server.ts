@@ -961,7 +961,53 @@ async function handleUpvote(req: express.Request, res: express.Response) {
   }
 }
 app.post('/api/reports/:id/upvote', handleUpvote);
-app.post('/api/issues/:id/upvote', handleUpvote);
+// DELETE /api/reports/:id & /api/issues/:id - Exclusively for Municipal Officers & Master Admin to delete false reports after manual inspection
+async function handleDeleteReport(req: express.Request, res: express.Response) {
+  try {
+    const currentUser = (req as any).user;
+    if (!currentUser || (currentUser.role !== 'AUTHORITY' && currentUser.role !== 'ADMIN')) {
+      return res.status(403).json({ 
+        error: 'Exclusive Authority: Only Municipal Officers and Master Administrators can remove false reports after manual inspection.' 
+      });
+    }
+
+    const { id } = req.params;
+    const { reason } = req.body || {};
+
+    const report = await dataService.getReportById(id);
+    if (!report) {
+      return res.status(404).json({ error: 'Report not found or already removed.' });
+    }
+
+    const deleted = await dataService.deleteReport(id);
+    if (!deleted) {
+      return res.status(500).json({ error: 'Failed to delete report.' });
+    }
+
+    // Realtime Broadcast deletion across all connected clients
+    io.emit('report.deleted', { 
+      id, 
+      deletedBy: currentUser.name, 
+      deletedByRole: currentUser.role, 
+      reason: reason || 'False report removed after manual inspection' 
+    });
+    console.log(`🗑️ [Report Deleted] Report #${id} ("${report.title}") purged by ${currentUser.name} (${currentUser.role}). Reason: ${reason || 'False report removed after manual inspection'}`);
+
+    res.json({
+      message: `Report #${id} successfully deleted after manual inspection.`,
+      id,
+      deletedReport: {
+        id: report.id,
+        title: report.title,
+        ticket_id: report.ticket_id,
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to delete report' });
+  }
+}
+app.delete('/api/reports/:id', requireAdminOrAuthority, handleDeleteReport);
+app.delete('/api/issues/:id', requireAdminOrAuthority, handleDeleteReport);
 
 // GET /api/reports/:id/history
 app.get('/api/reports/:id/history', async (req, res) => {
