@@ -262,7 +262,7 @@ app.get('/api/auth/me', async (req, res) => {
       user: {
         id: 'admin_master_001',
         email: 'admin@citypulse.gov',
-        name: 'Master Administrator (Nikhil)',
+        name: 'Master Administrator',
         role: 'ADMIN',
         area: 'Supreme City Command',
       },

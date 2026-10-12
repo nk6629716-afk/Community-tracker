@@ -121,7 +121,7 @@ export const MasterAdminDispatchCodeModal: React.FC<MasterAdminDispatchCodeModal
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-2xl rounded-3xl p-6 sm:p-8 bg-gradient-to-b from-[#140e24] via-[#0c0a17] to-[#060713] border border-purple-500/40 shadow-[0_0_80px_rgba(147,51,234,0.25)] text-white animate-scale-up space-y-6">
+      <div className="relative w-full max-w-2xl rounded-3xl p-6 sm:p-8 glass-modal bg-gradient-to-b from-[#140e24] via-[#0c0a17] to-[#060713] border border-purple-500/40 shadow-2xl text-white animate-scale-up space-y-6">
         
         {/* Header with Close Button */}
         <div className="flex items-start justify-between gap-4 pb-4 border-b border-white/10">

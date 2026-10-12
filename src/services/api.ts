@@ -90,7 +90,7 @@ function sanitizeUser(user: AuthUser): AuthUser {
     .trim();
   return {
     ...user,
-    name: cleanName || (user.role === 'ADMIN' ? 'Master Administrator (Nikhil)' : 'Authorized User'),
+    name: cleanName || (user.role === 'ADMIN' ? 'Master Administrator' : 'Authorized User'),
   };
 }
 
