@@ -3,6 +3,7 @@ import path from 'path';
 import bcrypt from 'bcryptjs';
 import { Issue, AnalyticsData, IssueCategory, IssueSeverity, IssueStatus } from '../types';
 import { calculatePriorityScore } from '../utils/priority';
+import { DELHI_REAL_PROBLEMS } from './delhi-seed';
 
 export interface UserRecord {
   id: string;
@@ -29,9 +30,9 @@ interface DataStore {
 
 const STORE_PATH = path.join(process.cwd(), 'citypulse_store.json');
 
-// Base seed coordinates
-const BASE_LAT = 37.7749;
-const BASE_LNG = -122.4194;
+// Base seed coordinates (Delhi NCR Center - Connaught Place)
+const BASE_LAT = 28.6139;
+const BASE_LNG = 77.2090;
 
 function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
@@ -102,175 +103,10 @@ class CitypulseDatabase {
       ];
     }
 
-    // Seed default reports if empty
-    if (this.reports.length === 0) {
-      this.reports = [
-        {
-          id: 'iss-1',
-          title: 'Large pothole near College Gate',
-          description: 'There is a large, deep pothole near the college main entrance that is causing severe hazard for two-wheelers and cyclists during rush hour.',
-          category: 'road_damage',
-          severity: 'high',
-          ai_summary: 'Large pothole reported near College Gate creating a potential safety hazard for two-wheelers.',
-          ai_severity: 'high',
-          ai_confidence: 0.94,
-          ai_reason: 'The report describes a significant road defect located in a high-traffic pedestrian and student vehicular corridor.',
-          recommended_action: 'Dispatch road maintenance crew to inspect sub-base, mill edges, and apply hot-mix asphalt patch.',
-          latitude: BASE_LAT + 0.0035,
-          longitude: BASE_LNG - 0.0042,
-          address: 'College Gate & University Ave',
-          photo_url: 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?auto=format&fit=crop&w=800&q=80',
-          status: 'in_progress',
-          is_anonymous: false,
-          created_by: 'Rahul S. (Student Council)',
-          created_at: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-          upvotes: 83,
-          priority_score: 91,
-          history: [
-            {
-              id: 'upd-1a',
-              issue_id: 'iss-1',
-              old_status: null,
-              new_status: 'reported',
-              comment: 'Issue reported by Rahul S. with verified photographic evidence.',
-              updated_by: 'System',
-              created_at: new Date(Date.now() - 36 * 3600 * 1000).toISOString(),
-            },
-            {
-              id: 'upd-1b',
-              issue_id: 'iss-1',
-              old_status: 'reported',
-              new_status: 'in_progress',
-              comment: 'Public Works Dept scheduled quick-fill asphalt unit for immediate remediation.',
-              updated_by: 'Officer Sarah Chen',
-              created_at: new Date(Date.now() - 12 * 3600 * 1000).toISOString(),
-            },
-          ],
-        },
-        {
-          id: 'iss-2',
-          title: 'Water leakage near Block C',
-          description: 'High pressure municipal water pipe leaking onto the main walkway near Block C. Water has been continuously gushing for over 6 hours.',
-          category: 'water_leakage',
-          severity: 'critical',
-          ai_summary: 'Severe pressurized water main rupture causing walkway flooding and resource wastage near Block C.',
-          ai_severity: 'critical',
-          ai_confidence: 0.96,
-          ai_reason: 'Active pressurized leak causing flooding in pedestrian zone, posing foundation erosion risk.',
-          recommended_action: 'Isolate valve sector 4B immediately and dispatch emergency water utility team.',
-          latitude: BASE_LAT - 0.0048,
-          longitude: BASE_LNG + 0.0031,
-          address: 'Block C Walkway, North Sector',
-          photo_url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
-          status: 'reported',
-          is_anonymous: true,
-          created_by: 'Reported anonymously',
-          created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-          upvotes: 59,
-          priority_score: 86,
-          history: [
-            {
-              id: 'upd-2a',
-              issue_id: 'iss-2',
-              old_status: null,
-              new_status: 'reported',
-              comment: 'Anonymous report submitted with GPS validation.',
-              updated_by: 'Citizen',
-              created_at: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-            },
-          ],
-        },
-        {
-          id: 'iss-3',
-          title: 'Garbage accumulation at Central Market',
-          description: 'Waste bins overflowing across market alleyway. Stagnant organic waste attracting pests and causing foul odor in shopping district.',
-          category: 'garbage',
-          severity: 'high',
-          ai_summary: 'Excessive municipal waste accumulation with sanitation hazard at Central Market.',
-          ai_severity: 'high',
-          ai_confidence: 0.92,
-          ai_reason: 'Severe sanitation risk in food market zone with rodent/pest threat.',
-          recommended_action: 'Deploy solid waste compactor truck and sanitize collection station bins.',
-          latitude: BASE_LAT + 0.0062,
-          longitude: BASE_LNG + 0.0054,
-          address: 'Central Market Lane 3',
-          photo_url: 'https://images.unsplash.com/photo-1530587191325-3db32d826c18?auto=format&fit=crop&w=800&q=80',
-          status: 'reported',
-          is_anonymous: false,
-          created_by: 'Alex Rivera',
-          userId: 'usr-citizen-1',
-          created_at: new Date(Date.now() - 14 * 3600 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 14 * 3600 * 1000).toISOString(),
-          upvotes: 71,
-          priority_score: 81,
-          history: [
-            {
-              id: 'upd-3a',
-              issue_id: 'iss-3',
-              old_status: null,
-              new_status: 'reported',
-              comment: 'Citizen report flagged for urgent sanitation pickup.',
-              updated_by: 'System',
-              created_at: new Date(Date.now() - 14 * 3600 * 1000).toISOString(),
-            },
-          ],
-        },
-        {
-          id: 'iss-4',
-          title: 'Broken streetlight on Park Road',
-          description: 'Streetlight pole #42 is unlit for three consecutive nights, creating a dark stretch along the student pedestrian path.',
-          category: 'streetlight',
-          severity: 'medium',
-          ai_summary: 'Inoperative streetlight pole along pedestrian route reducing night-time visibility and security.',
-          ai_severity: 'medium',
-          ai_confidence: 0.89,
-          ai_reason: 'Pedestrian safety and visibility concern along well-trafficked night path.',
-          recommended_action: 'Inspect circuit breaker and replace 120W LED fixture.',
-          latitude: BASE_LAT - 0.0021,
-          longitude: BASE_LNG - 0.0065,
-          address: 'Park Road, opposite Community Garden',
-          photo_url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=800&q=80',
-          status: 'resolved',
-          is_anonymous: false,
-          created_by: 'Alex Rivera',
-          userId: 'usr-citizen-1',
-          created_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-          updated_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-          upvotes: 34,
-          priority_score: 54,
-          history: [
-            {
-              id: 'upd-4a',
-              issue_id: 'iss-4',
-              old_status: null,
-              new_status: 'reported',
-              comment: 'Initial report logged.',
-              updated_by: 'Citizen',
-              created_at: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
-            },
-            {
-              id: 'upd-4b',
-              issue_id: 'iss-4',
-              old_status: 'reported',
-              new_status: 'in_progress',
-              comment: 'Electrical maintenance dispatched.',
-              updated_by: 'Officer Sarah Chen',
-              created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-            },
-            {
-              id: 'upd-4c',
-              issue_id: 'iss-4',
-              old_status: 'in_progress',
-              new_status: 'resolved',
-              comment: 'LED fixture replaced and circuit continuity verified.',
-              updated_by: 'Officer Sarah Chen',
-              created_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-            },
-          ],
-        },
-      ];
+    // Seed default real-life Delhi civic reports if empty or outdated
+    const hasOldSeed = this.reports.some((r) => r.id === 'iss-1' || r.id === 'iss-2');
+    if (this.reports.length === 0 || hasOldSeed) {
+      this.reports = JSON.parse(JSON.stringify(DELHI_REAL_PROBLEMS));
     }
 
     this.save();
@@ -641,6 +477,15 @@ class CitypulseDatabase {
 
   public updateIssueStatus(id: string, newStatus: any, comment: string, updatedBy: string) {
     return this.updateReportStatus(id, newStatus, comment, updatedBy);
+  }
+
+  public seedDelhi(force = false): ReportRecord[] {
+    const hasOldSeed = this.reports.some((r) => r.id === 'iss-1' || r.id === 'iss-2');
+    if (force || this.reports.length === 0 || hasOldSeed) {
+      this.reports = JSON.parse(JSON.stringify(DELHI_REAL_PROBLEMS));
+      this.save();
+    }
+    return this.reports;
   }
 }
 

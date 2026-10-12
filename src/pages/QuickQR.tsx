@@ -12,42 +12,42 @@ export const QuickQR: React.FC<QuickQRProps> = ({ onQuickReport }) => {
 
   const predefinedStations = [
     {
-      name: 'College Gate',
-      zone: 'North Campus Entrance',
-      desc: 'High transit pedestrian gate and vehicle drop-off zone',
-      coords: '37.7749, -122.4194',
+      name: 'Connaught Place Inner Circle',
+      zone: 'Rajiv Chowk Metro Hub',
+      desc: 'High transit pedestrian plaza and commercial core',
+      coords: '28.6315, 77.2167',
     },
     {
-      name: 'Library Road',
-      zone: 'Academic Quadrangle',
-      desc: 'Heavy student pathway near central reading halls',
-      coords: '37.7725, -122.4147',
+      name: 'Chandni Chowk Market Gate',
+      zone: 'Old Delhi Heritage District',
+      desc: 'High footfall shopping lane and historic bazaar corridor',
+      coords: '28.6506, 77.2303',
     },
     {
-      name: 'Bus Stop 4',
-      zone: 'Municipal Transit Hub',
-      desc: 'Frequent passenger wait shelter and commuter node',
-      coords: '37.7781, -122.4215',
+      name: 'Lajpat Nagar Central Market',
+      zone: 'South Delhi Commercial Hub',
+      desc: 'Dense pedestrian shopping promenade and transit shelter',
+      coords: '28.5677, 77.2433',
     },
     {
-      name: 'Market Square',
-      zone: 'Civic Commercial District',
-      desc: 'High footfall public shopping and sanitation area',
-      coords: '37.7760, -122.4172',
+      name: 'Rohini Sector 14 Transit Point',
+      zone: 'North West Delhi Arterial Hub',
+      desc: 'Bus stop cluster and residential connector crossing',
+      coords: '28.7159, 77.1189',
     },
     {
-      name: 'Hostel Block C',
-      zone: 'Student Residential Quarters',
-      desc: 'Dormitory perimeter and residential water/waste junction',
-      coords: '37.7712, -122.4230',
+      name: 'Dwarka Sector 12 Metro Station',
+      zone: 'South West Delhi Transit Node',
+      desc: 'Sub-city commuter node and school access junction',
+      coords: '28.5921, 77.0460',
     },
   ];
 
   const activeStation = predefinedStations.find((s) => s.name === selectedStation) || {
-    name: customStation || 'Campus Point',
+    name: customStation || 'Delhi Community Point',
     zone: 'Custom Location',
-    desc: 'Custom designated community reporting zone',
-    coords: '37.7749, -122.4194',
+    desc: 'Custom designated community reporting zone in Delhi NCR',
+    coords: '28.6139, 77.2090',
   };
 
   const handlePrint = () => {

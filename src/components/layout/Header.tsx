@@ -13,9 +13,12 @@ import {
   LogOut,
   User,
   ShieldAlert,
-  Radio
+  Radio,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { AuthUser } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
 
 interface HeaderProps {
   currentTab: string;
@@ -38,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleAuthorityMode,
   onReplayBoot,
 }) => {
+  const { theme, toggleTheme } = useTheme();
   const navItems = [
     { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
     { id: 'map', label: 'Live Map', icon: MapPin },
@@ -168,6 +172,31 @@ export const Header: React.FC<HeaderProps> = ({
                   <span className="tracking-wider">BOOT TELEMETRY</span>
                 </button>
               )}
+
+              {/* Theme Mode Switcher Button (Dark / Day Mode) */}
+              <button
+                id="btn-theme-toggle"
+                onClick={toggleTheme}
+                className={`p-2 sm:px-3 sm:py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer border text-xs font-semibold shadow-sm select-none ${
+                  theme === 'dark'
+                    ? 'border-white/10 hover:border-amber-400/40 bg-white/5 hover:bg-white/10 text-slate-200'
+                    : 'border-slate-300 hover:border-indigo-500/50 bg-slate-100 hover:bg-slate-200 text-slate-800'
+                }`}
+                title={theme === 'dark' ? 'Switch to Day / Light Mode' : 'Switch to Cyber / Dark Mode'}
+                aria-label="Toggle theme mode"
+              >
+                {theme === 'dark' ? (
+                  <>
+                    <Sun className="w-4 h-4 text-amber-300 transition-transform hover:rotate-45" />
+                    <span className="hidden xl:inline text-slate-300">Day Mode</span>
+                  </>
+                ) : (
+                  <>
+                    <Moon className="w-4 h-4 text-indigo-600 transition-transform hover:-rotate-12" />
+                    <span className="hidden xl:inline text-slate-800 font-bold">Dark Mode</span>
+                  </>
+                )}
+              </button>
 
               {/* Report Issue Button */}
               <button

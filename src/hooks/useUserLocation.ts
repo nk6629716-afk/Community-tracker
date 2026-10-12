@@ -26,10 +26,10 @@ const STORAGE_KEY = 'community_tracker_gps_coords';
 const PLACE_STORAGE_KEY = 'community_tracker_gps_place';
 const LOCATION_SOURCE_KEY = 'community_tracker_location_source';
 
-// Default fallback coordinates (Civic Center Hub seed)
+// Default fallback coordinates (Connaught Place, Central Delhi)
 export const DEFAULT_FALLBACK_LOCATION: GeoCoordinates = {
-  lat: 37.7749,
-  lng: -122.4194,
+  lat: 28.6139,
+  lng: 77.2090,
   accuracy: 25,
 };
 

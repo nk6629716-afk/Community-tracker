@@ -2,6 +2,7 @@ import { Pool, PoolConfig } from 'pg';
 import type { AnalyticsData, Issue, IssueCategory, IssueSeverity, IssueStatus } from '../types';
 import { calculatePriorityScore } from '../utils/priority';
 import type { ReportRecord, UserRecord } from './database';
+import { DELHI_REAL_PROBLEMS } from './delhi-seed';
 
 type ReportFilters = {
   category?: string;
@@ -204,10 +205,76 @@ export class PostgresCitypulseDatabase {
         CREATE INDEX IF NOT EXISTS reports_priority_idx ON reports(priority_score DESC);
         CREATE INDEX IF NOT EXISTS report_history_report_id_idx ON report_history(report_id);
       `);
+
+      // Auto-seed real-life Delhi civic problems if table is empty
+      const countRes = await pool.query('SELECT COUNT(*) FROM reports');
+      const count = parseInt(countRes.rows[0].count, 10);
+      if (count === 0) {
+        await this.seedDelhiIssues(false);
+      }
+
       this.schemaReady = true;
     } catch (err) {
       console.warn('[PostgreSQL Schema Init Warning]:', err);
     }
+  }
+
+  async seedDelhiIssues(force = false) {
+    if (force) {
+      await pool.query('DELETE FROM report_history');
+      await pool.query('DELETE FROM reports');
+    }
+
+    for (const item of DELHI_REAL_PROBLEMS) {
+      await pool.query(
+        `INSERT INTO reports (id, title, description, category, severity, status, latitude, longitude, address, photo_url, is_anonymous, created_by, ai_summary, ai_severity, ai_confidence, ai_reason, recommended_action, upvotes, priority_score, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+         ON CONFLICT (id) DO UPDATE SET
+           title = EXCLUDED.title,
+           description = EXCLUDED.description,
+           address = EXCLUDED.address,
+           photo_url = EXCLUDED.photo_url,
+           latitude = EXCLUDED.latitude,
+           longitude = EXCLUDED.longitude,
+           category = EXCLUDED.category,
+           severity = EXCLUDED.severity`,
+        [
+          item.id,
+          item.title,
+          item.description,
+          item.category,
+          item.severity,
+          item.status,
+          item.latitude,
+          item.longitude,
+          item.address,
+          item.photo_url,
+          Boolean(item.is_anonymous),
+          item.created_by,
+          item.ai_summary,
+          item.ai_severity,
+          item.ai_confidence,
+          item.ai_reason,
+          item.recommended_action,
+          item.upvotes,
+          item.priority_score,
+          item.created_at,
+          item.updated_at,
+        ]
+      );
+
+      if (item.history && item.history.length > 0) {
+        for (const h of item.history) {
+          await pool.query(
+            `INSERT INTO report_history (report_id, old_status, new_status, comment, updated_by, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             ON CONFLICT DO NOTHING`,
+            [item.id, h.old_status, h.new_status, h.comment, h.updated_by, h.created_at]
+          );
+        }
+      }
+    }
+    console.log('[PostgreSQL] Seeded authentic Delhi civic issues into database.');
   }
 
   async healthcheck() {

@@ -558,6 +558,22 @@ app.get('/api/admin/reset-codes', requireAdminOrAuthority, (req, res) => {
   res.json(validCodes);
 });
 
+// Seed authentic Delhi civic problems with real photographs into active database
+const handleSeedDelhi = async (req: express.Request, res: express.Response) => {
+  try {
+    await dataService.seedDelhiIssues(true);
+    res.json({
+      status: 'ok',
+      message: '9 authentic Delhi civic problems with photographs seeded into database successfully.',
+      count: 9,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to seed Delhi issues' });
+  }
+};
+app.post('/api/admin/seed-delhi', handleSeedDelhi);
+app.get('/api/admin/seed-delhi', handleSeedDelhi);
+
 // =========================================================================
 // 10-MINUTE DISPATCH AUTHORIZATION CODE MANAGEMENT (MASTER ADMIN ONLY)
 // =========================================================================
@@ -932,6 +948,21 @@ app.get('/api/analytics', async (req, res) => {
     res.json(data);
   } catch (err: any) {
     res.status(500).json({ error: err.message || 'Failed to generate analytics' });
+  }
+});
+
+// Seed / Reset Delhi Real-life Civic Issues
+app.all(['/api/admin/seed-delhi', '/api/seed-delhi'], async (req, res) => {
+  try {
+    const force = req.query.force === 'true' || req.body?.force === true;
+    const seeded = await dataService.seedDelhiIssues(force);
+    res.json({
+      message: 'Delhi civic issues successfully populated and synchronized.',
+      count: Array.isArray(seeded) ? seeded.length : 9,
+      force,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to seed Delhi issues' });
   }
 });
 

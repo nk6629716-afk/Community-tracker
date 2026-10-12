@@ -43,10 +43,10 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
 
   // Location State
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({
-    lat: 37.7749,
-    lng: -122.4194,
+    lat: 28.6139,
+    lng: 77.2090,
   });
-  const [address, setAddress] = useState<string>(prefilledLocation || 'College Gate, University Campus');
+  const [address, setAddress] = useState<string>(prefilledLocation || 'Connaught Place, Central Delhi 110001');
   const [isLocating, setIsLocating] = useState<boolean>(false);
 
   // AI Pipeline State
@@ -92,9 +92,9 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
         setIsLocating(false);
       },
       (err) => {
-        console.warn('Geolocation denied or failed, using community center default:', err.message);
+        console.warn('Geolocation denied or failed, using Delhi center default:', err.message);
         setIsLocating(false);
-        setCoordinates({ lat: 37.7749 + (Math.random() - 0.5) * 0.005, lng: -122.4194 + (Math.random() - 0.5) * 0.005 });
+        setCoordinates({ lat: 28.6139 + (Math.random() - 0.5) * 0.005, lng: 77.2090 + (Math.random() - 0.5) * 0.005 });
       },
       { timeout: 8000, enableHighAccuracy: true }
     );
