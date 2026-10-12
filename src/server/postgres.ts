@@ -43,9 +43,31 @@ const isLocalhost = Boolean(
   process.env.DATABASE_URL?.includes('127.0.0.1')
 );
 
+// If running in cloud production with managed PostgreSQL (e.g. Aiven), prevent Node TLS rejection of provider CA chains
+if (process.env.DATABASE_URL && !isLocalhost) {
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+}
+
+/**
+ * Strips any '?sslmode=...' query parameter from the URL.
+ * When 'sslmode=require' is left in the connection string, node-postgres's internal parser
+ * treats it as 'verify-full' and overwrites 'rejectUnauthorized: false', causing self-signed
+ * certificate errors on managed services like Aiven.
+ */
+function getNormalizedDatabaseUrl(rawUrl?: string): string | undefined {
+  if (!rawUrl) return undefined;
+  try {
+    const parsed = new URL(rawUrl);
+    parsed.searchParams.delete('sslmode');
+    return parsed.toString();
+  } catch {
+    return rawUrl.replace(/([?&])sslmode=[^&]+(&|$)/, '$1').replace(/[?&]$/, '');
+  }
+}
+
 // Standard PostgreSQL Pool configuration strictly driven by process.env.DATABASE_URL
 const poolConfig: PoolConfig = {
-  connectionString: process.env.DATABASE_URL,
+  connectionString: getNormalizedDatabaseUrl(process.env.DATABASE_URL),
   ssl: isLocalhost ? false : { rejectUnauthorized: false },
   max: 20,
   idleTimeoutMillis: 30000,
