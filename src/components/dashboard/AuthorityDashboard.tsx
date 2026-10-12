@@ -34,7 +34,8 @@ import {
   Cpu,
   Terminal,
   X,
-  Shield
+  Shield,
+  Infinity as InfinityIcon
 } from 'lucide-react';
 import { Issue, IssueStatus } from '../../types';
 import { AuthUser, api } from '../../services/api';
@@ -106,7 +107,8 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  const formatTimeRemaining = (expiresAtMs: number) => {
+  const formatTimeRemaining = (expiresAtMs?: number | null, cType?: string) => {
+    if (cType === 'PERMANENT' || !expiresAtMs) return 'Permanent (No Timer)';
     const diff = Math.max(0, Math.floor((expiresAtMs - nowTimestamp) / 1000));
     if (diff <= 0) return 'Expired';
     const minutes = Math.floor(diff / 60);
@@ -219,17 +221,21 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
     }
   };
 
-  // Handle 10-Minute Dispatch Code Generation (Master Admin Only)
-  const handleGenerateDispatchCode = async (note?: string) => {
+  // Handle Dispatch Code Generation (Master Admin Only)
+  const handleGenerateDispatchCode = async (assignedEmail?: string, note?: string, codeType: 'TIMER' | 'PERMANENT' = 'TIMER') => {
+    if (!assignedEmail) {
+      setIsDispatchModalOpen(true);
+      return;
+    }
     try {
       setIsGeneratingDispatchCode(true);
-      const res = await api.generateDispatchCode(note || dispatchCodeNote.trim() || undefined);
+      const res = await api.generateDispatchCode(assignedEmail, note || dispatchCodeNote.trim() || undefined, codeType);
       setLatestGeneratedDispatchCode(res);
       setIsCopiedDispatchCode(false);
       setDispatchCodeNote('');
       await fetchActiveDispatchCodes();
     } catch (err: any) {
-      alert(err.message || 'Failed to generate 10-minute dispatch authorization code');
+      alert(err.message || 'Failed to generate dispatch authorization code');
     } finally {
       setIsGeneratingDispatchCode(false);
     }
@@ -237,7 +243,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
 
   // Handle Revoking a Dispatch Code
   const handleRevokeDispatchCode = async (code: string) => {
-    if (!window.confirm(`Revoke 10-minute authorization code "${code}"?`)) return;
+    if (!window.confirm(`Revoke authorization code "${code}"?`)) return;
     try {
       await api.revokeDispatchCode(code);
       await fetchActiveDispatchCodes();
@@ -1248,12 +1254,12 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                     className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-md"
                   >
                     <Key className="w-3.5 h-3.5" />
-                    <span>👑 Open Code Generation Dialogue</span>
+                    <span>👑 Open Code Generator (Timer / Permanent)</span>
                   </button>
                 </div>
               ) : (
                 <span className="px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold flex items-center gap-1.5">
-                  🛡️ Municipal Officer Clearance (Requires 10-Min Passcode)
+                  🛡️ Municipal Officer Clearance (Requires Timer or Permanent Passcode)
                 </span>
               )}
             </div>
@@ -1274,16 +1280,29 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-white font-bold">10-Minute Officer Dispatch Passcode:</span>
-                      <span className="font-mono font-black text-amber-300 text-sm tracking-wider px-2 py-0.5 rounded bg-black/50 border border-amber-400/40">
+                      <span className="text-white font-bold">
+                        {latestGeneratedDispatchCode.isPermanent 
+                          ? '♾️ Permanent Officer Dispatch Passcode:' 
+                          : '⏱️ 10-Minute Officer Dispatch Passcode:'}
+                      </span>
+                      <span className={`font-mono font-black text-sm tracking-wider px-2 py-0.5 rounded bg-black/50 border ${
+                        latestGeneratedDispatchCode.isPermanent ? 'text-cyan-300 border-cyan-400/40' : 'text-amber-300 border-amber-400/40'
+                      }`}>
                         {latestGeneratedDispatchCode.code}
                       </span>
                     </div>
                     <span className="text-[11px] text-slate-300">
-                      Share this code with Municipal Officers. Expires in{' '}
-                      <strong className="text-amber-400">
-                        {formatTimeRemaining(new Date(latestGeneratedDispatchCode.expiresAt).getTime())}
-                      </strong>.
+                      Assigned to <strong className="text-cyan-300">{latestGeneratedDispatchCode.assignedToEmail}</strong> •{' '}
+                      {latestGeneratedDispatchCode.isPermanent ? (
+                        <strong className="text-cyan-400">Permanent (No Time Limit)</strong>
+                      ) : (
+                        <>
+                          Expires in{' '}
+                          <strong className="text-amber-400">
+                            {formatTimeRemaining(latestGeneratedDispatchCode.expiresAt ? new Date(latestGeneratedDispatchCode.expiresAt).getTime() : null, latestGeneratedDispatchCode.codeType)}
+                          </strong>
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -1335,34 +1354,63 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-bold text-amber-300 flex items-center gap-1.5">
                       <Key className="w-3.5 h-3.5 text-amber-400" />
-                      <span>10-Minute Master Admin Authorization Code *</span>
+                      <span>Master Admin Authorization Code (Timer or Permanent) *</span>
                     </label>
                     <span className="text-[10px] text-amber-400/80 font-mono">EXCLUSIVELY BOUND TO {user.email}</span>
                   </div>
 
                   {/* Personal active code banner if issued to this officer */}
                   {activeDispatchCodesList.length > 0 && (
-                    <div className="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/50 text-emerald-200 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 animate-fade-in shadow-inner">
-                      <div className="flex items-center gap-2">
-                        <Key className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
-                        <div>
-                          <span className="block font-bold text-emerald-300">
-                            Active clearance code issued to your email ({user.email}):
-                          </span>
-                          <span className="text-[11px] text-emerald-400/90 font-mono">
-                            Code: <strong className="text-white text-xs">{activeDispatchCodesList[0].code}</strong> • Expires in{' '}
-                            {formatTimeRemaining(activeDispatchCodesList[0].expiresAt)} • Single-use
-                          </span>
-                        </div>
+                    <div className="p-3.5 rounded-xl bg-emerald-950/50 border border-emerald-500/50 text-emerald-200 text-xs flex flex-col gap-2.5 animate-fade-in shadow-inner">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-emerald-300 flex items-center gap-1.5">
+                          <Key className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
+                          <span>Active Clearance Code(s) Issued to Your Email ({user.email}):</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-400 bg-emerald-900/40 px-2 py-0.5 rounded border border-emerald-700/50">
+                          {activeDispatchCodesList.length} CODE{activeDispatchCodesList.length > 1 ? 'S' : ''} ACTIVE
+                        </span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => setDispatchCodeInput(activeDispatchCodesList[0].code)}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-emerald-200 font-bold text-[11px] border border-emerald-400/50 transition cursor-pointer self-start sm:self-auto"
-                      >
-                        Auto-Fill Code
-                      </button>
+                      <div className="space-y-1.5 mt-1">
+                        {activeDispatchCodesList.map((codeItem) => {
+                          const isPerm = codeItem.codeType === 'PERMANENT' || codeItem.expiresAt === null;
+                          const timeLeft = formatTimeRemaining(codeItem.expiresAt, codeItem.codeType);
+                          return (
+                            <div 
+                              key={codeItem.code} 
+                              className="p-2.5 rounded-lg bg-black/50 border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                            >
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className={`font-mono font-black text-sm tracking-wide ${isPerm ? 'text-cyan-300' : 'text-amber-300'}`}>
+                                  {codeItem.code}
+                                </span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  isPerm 
+                                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30' 
+                                    : 'bg-amber-500/20 text-amber-300 border border-amber-400/30'
+                                }`}>
+                                  {isPerm ? '♾️ Permanent (No Time Limit)' : `⏱️ ${timeLeft}`}
+                                </span>
+                                <span className="text-[10px] text-slate-300">
+                                  {codeItem.usageType === 'MULTI_USE' ? 'Multi-Use Standing' : 'Single-Use'}
+                                </span>
+                                {codeItem.note && (
+                                  <span className="text-[10px] text-slate-400 italic">({codeItem.note})</span>
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => setDispatchCodeInput(codeItem.code)}
+                                className="px-3 py-1 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/50 text-emerald-100 font-bold text-[11px] border border-emerald-400/50 transition cursor-pointer self-start sm:self-auto shrink-0"
+                              >
+                                Auto-Fill Code
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
@@ -1371,11 +1419,11 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                     required
                     value={dispatchCodeInput}
                     onChange={(e) => setDispatchCodeInput(e.target.value.toUpperCase())}
-                    placeholder="Enter 10-Minute Code (e.g. CMD-842913)"
+                    placeholder="Enter Code (e.g. CMD-842913 or PERM-481923)"
                     className="glass-input w-full px-4 py-2.5 rounded-xl text-sm font-mono tracking-wider font-bold placeholder:font-normal placeholder:tracking-normal"
                   />
                   <p className="text-[11px] text-slate-400">
-                    This single-use code is exclusively valid for your registered email (<strong>{user.email}</strong>) and expires immediately upon broadcast.
+                    Enter either a 10-Minute Timer code or a Permanent code issued exclusively to your email (<strong>{user.email}</strong>).
                   </p>
                 </div>
               )}
@@ -1405,16 +1453,16 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
             </form>
           </div>
 
-          {/* 10-MINUTE DISPATCH AUTHORIZATION CODE LEDGER (MASTER ADMIN & OFFICERS) */}
+          {/* EMERGENCY DISPATCH AUTHORIZATION CODE LEDGER (TIMER & PERMANENT) */}
           <div className="glass-card rounded-3xl p-6 sm:p-8 border border-white/10 shadow-xl space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <ShieldAlert className="w-5 h-5 text-amber-400" />
-                  <h3 className="text-xl font-bold text-white">10-Minute Emergency Dispatch Clearance Ledger</h3>
+                  <h3 className="text-xl font-bold text-white">Emergency Dispatch Clearance Ledger</h3>
                 </div>
                 <p className="text-xs text-slate-400">
-                  Master Admin time-locked authorization codes (10 minutes validity) required for Municipal Officers to dispatch emergency alerts.
+                  Master Admin authorization codes (10-minute timer or permanent with no time limit) required for Municipal Officers to dispatch emergency alerts.
                 </p>
               </div>
 
@@ -1429,12 +1477,11 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
 
                 {user.role === 'ADMIN' && (
                   <button
-                    onClick={() => handleGenerateDispatchCode()}
-                    disabled={isGeneratingDispatchCode}
-                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg disabled:opacity-50"
+                    onClick={() => setIsDispatchModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 via-orange-600 to-purple-600 hover:from-amber-500 hover:to-purple-500 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg"
                   >
                     <Key className="w-3.5 h-3.5" />
-                    <span>{isGeneratingDispatchCode ? 'Issuing...' : '+ Issue 10-Min Code'}</span>
+                    <span>+ Issue Clearance Code</span>
                   </button>
                 )}
               </div>
@@ -1444,9 +1491,9 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Active 10-Minute Dispatch Passcodes ({activeDispatchCodesList.length})
+                  Active Dispatch Passcodes ({activeDispatchCodesList.length})
                 </span>
-                <span className="text-[10px] text-amber-400/80 font-mono">EXPIRES AFTER 10 MINUTES</span>
+                <span className="text-[10px] text-amber-400/80 font-mono">TIMED (10-MIN) & PERMANENT</span>
               </div>
 
               {isLoadingDispatchCodes ? (
@@ -1454,8 +1501,8 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
               ) : activeDispatchCodesList.length === 0 ? (
                 <div className="p-8 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-slate-400">
                   {user.role === 'ADMIN'
-                    ? 'No active 10-minute dispatch authorization codes currently live. Click "+ Issue 10-Min Code" above to grant temporary dispatch authority to Municipal Officers.'
-                    : 'No active 10-minute dispatch codes currently live. Please ask the Master Administrator to generate an authorization code from their dashboard.'}
+                    ? 'No active dispatch authorization codes currently live. Click "+ Issue Clearance Code" above to grant timer-based or permanent dispatch authority to Municipal Officers.'
+                    : 'No active dispatch codes currently live. Please ask the Master Administrator to generate an authorization code from their dashboard.'}
                 </div>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-white/10">
@@ -1463,37 +1510,48 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
                     <thead className="bg-white/5 text-slate-400 uppercase text-[10px] font-bold border-b border-white/10">
                       <tr>
                         <th className="p-3">Authorization Code</th>
-                        <th className="p-3">Time Remaining</th>
-                        <th className="p-3">Generated By</th>
-                        <th className="p-3">Usage</th>
+                        <th className="p-3">Type & Validity</th>
+                        <th className="p-3">Assigned Officer</th>
+                        <th className="p-3">Usage Policy</th>
                         <th className="p-3 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {activeDispatchCodesList.map((c) => {
-                        const timeLeft = formatTimeRemaining(c.expiresAt);
-                        const isExpired = timeLeft === 'Expired';
+                        const isPerm = c.codeType === 'PERMANENT' || c.expiresAt === null;
+                        const timeLeft = formatTimeRemaining(c.expiresAt, c.codeType);
+                        const isExpired = !isPerm && timeLeft === 'Expired';
                         return (
                           <tr key={c.code} className="hover:bg-white/5 transition">
-                            <td className="p-3 font-mono font-bold text-amber-300 text-sm">
-                              {c.code}
+                            <td className="p-3 font-mono font-bold text-sm">
+                              <span className={isPerm ? 'text-cyan-300' : 'text-amber-300'}>
+                                {c.code}
+                              </span>
                             </td>
                             <td className="p-3">
                               <span className={`inline-flex items-center gap-1 font-mono font-bold px-2 py-0.5 rounded-full text-[11px] ${
-                                isExpired 
-                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' 
-                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                isPerm
+                                  ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/30'
+                                  : isExpired 
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' 
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                               }`}>
-                                <Clock className="w-3 h-3" />
-                                <span>{timeLeft}</span>
+                                {isPerm ? <InfinityIcon className="w-3 h-3 text-cyan-400" /> : <Clock className="w-3 h-3" />}
+                                <span>{isPerm ? 'Permanent (No Time Limit)' : timeLeft}</span>
                               </span>
                             </td>
                             <td className="p-3 text-slate-300">
-                              <span className="font-semibold text-white">{c.generatedBy}</span>
-                              {c.note && <span className="block text-[10px] text-slate-400">{c.note}</span>}
+                              <span className="font-semibold text-white block">{c.assignedToName || c.assignedToEmail}</span>
+                              <span className="font-mono text-[10px] text-cyan-300 block">{c.assignedToEmail}</span>
+                              {c.note && <span className="block text-[10px] text-slate-400 italic mt-0.5">{c.note}</span>}
                             </td>
-                            <td className="p-3 text-slate-400 font-mono text-[11px]">
-                              {c.usedCount > 0 ? `Used (${c.usedCount}x)` : 'Unused'}
+                            <td className="p-3 font-mono text-[11px]">
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/10 text-slate-200 border border-white/10">
+                                {c.usageType === 'MULTI_USE' ? 'Multi-Use Standing' : 'Single-Use'}
+                              </span>
+                              {c.usedCount > 0 && (
+                                <span className="text-[10px] text-slate-400 block mt-0.5">Used: {c.usedCount}x</span>
+                              )}
                             </td>
                             <td className="p-3 text-right">
                               <div className="flex items-center justify-end gap-2">
@@ -1738,7 +1796,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
           </div>
         </div>
       )}
-      {/* Master Admin 10-Minute Dispatch Authorization Dialogue Modal */}
+      {/* Master Admin Emergency Dispatch Authorization Dialogue Modal */}
       <MasterAdminDispatchCodeModal
         isOpen={isDispatchModalOpen}
         onClose={() => setIsDispatchModalOpen(false)}
@@ -1746,6 +1804,7 @@ export const AuthorityDashboard: React.FC<AuthorityDashboardProps> = ({
         activeCodes={activeDispatchCodesList}
         onRefreshCodes={fetchActiveDispatchCodes}
         nowTimestamp={nowTimestamp}
+        officers={users.filter((u) => u.role === 'AUTHORITY' || u.role === 'ADMIN')}
       />
     </div>
   );
