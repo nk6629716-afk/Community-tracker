@@ -41,6 +41,8 @@ export const dataService = {
   }) => postgres ? postgres.createReport(data) : Promise.resolve(citypulseDb.createReport(data)),
   updateReportStatus: (id: string, status: IssueStatus, comment: string, updatedBy: string) =>
     postgres ? postgres.updateReportStatus(id, status, comment, updatedBy) : Promise.resolve(citypulseDb.updateReportStatus(id, status, comment, updatedBy)),
+  deleteReport: (id: string) =>
+    postgres ? postgres.deleteReport(id) : Promise.resolve(citypulseDb.deleteReport(id)),
   addUpvote: (id: string) => postgres ? postgres.addUpvote(id) : Promise.resolve(citypulseDb.addUpvote(id)),
   getAnalytics: () => postgres ? postgres.getAnalytics() : Promise.resolve(citypulseDb.getAnalytics()),
   seedDelhiIssues: (force?: boolean) => postgres ? postgres.seedDelhiIssues(force) : Promise.resolve(citypulseDb.seedDelhi(force)),

@@ -347,6 +347,14 @@ class CitypulseDatabase {
     return report;
   }
 
+  public deleteReport(id: string): boolean {
+    const index = this.reports.findIndex((r) => r.id === id);
+    if (index === -1) return false;
+    this.reports.splice(index, 1);
+    this.save();
+    return true;
+  }
+
   public addUpvote(id: string): ReportRecord | null {
     const report = this.reports.find((r) => r.id === id);
     if (!report) return null;

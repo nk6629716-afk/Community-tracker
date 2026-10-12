@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Sparkles, AlertTriangle, ShieldCheck, Share2, Check, ExternalLink, Tag, Copy } from 'lucide-react';
+import { ArrowLeft, MapPin, Sparkles, AlertTriangle, ShieldCheck, Share2, Check, ExternalLink, Tag, Copy, Trash2, X, ShieldAlert } from 'lucide-react';
 import { Issue, IssueStatus } from '../types';
 import { CATEGORY_LABELS, SEVERITY_INFO, getPriorityBadge } from '../utils/priority';
 import { formatDateTime, getTicketId } from '../utils/formatters';
@@ -14,6 +14,7 @@ interface IssueDetailsProps {
   onBack: () => void;
   isAuthorityMode: boolean;
   onIssueUpdated: (updatedIssue: Issue) => void;
+  onIssueDeleted?: (deletedIssueId: string) => void;
 }
 
 export const IssueDetails: React.FC<IssueDetailsProps> = ({
@@ -21,10 +22,14 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
   onBack,
   isAuthorityMode,
   onIssueUpdated,
+  onIssueDeleted,
 }) => {
   const [currentIssue, setCurrentIssue] = useState<Issue>(issue);
   const [copiedShare, setCopiedShare] = useState(false);
   const [copiedTicket, setCopiedTicket] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('Ground physical inspection completed: False report / No hazard detected on site.');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const catLabel = CATEGORY_LABELS[currentIssue.category] || currentIssue.category;
   const sevInfo = SEVERITY_INFO[currentIssue.severity];
@@ -55,6 +60,22 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
     setTimeout(() => setCopiedTicket(false), 2000);
   };
 
+  const handleDeleteReport = async () => {
+    try {
+      setIsDeleting(true);
+      await api.deleteReport(currentIssue.id, deleteReason.trim() || undefined);
+      setShowDeleteModal(false);
+      if (onIssueDeleted) {
+        onIssueDeleted(currentIssue.id);
+      } else {
+        onBack();
+      }
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete false report');
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6 animate-fade-in pb-12">
       {/* Back Button and Action Bar */}
@@ -68,6 +89,18 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
+          {/* Delete False Report Button - Exclusive to Officials & Master Admin */}
+          {isAuthorityMode && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+              title="Delete false report after manual inspection (Officials & Master Admin only)"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>Delete False Report</span>
+            </button>
+          )}
+
           <button
             onClick={handleCopyTicket}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 border border-cyan-200 hover:bg-cyan-100 text-cyan-800 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
@@ -279,6 +312,104 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* False Report Deletion Modal (Officials & Master Admin Only) */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md animate-fade-in" onClick={() => !isDeleting && setShowDeleteModal(false)} />
+          <div className="relative glass-card bg-slate-950 border border-rose-500/50 p-6 sm:p-7 rounded-3xl max-w-lg w-full text-white space-y-5 animate-scale-up shadow-2xl">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center shrink-0">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-400/30">
+                    AUTHORITY ONLY
+                  </span>
+                  <h3 className="text-lg font-bold text-white mt-0.5">Delete False Report</h3>
+                </div>
+              </div>
+
+              <button
+                disabled={isDeleting}
+                onClick={() => setShowDeleteModal(false)}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              You are about to permanently purge this report from the municipal registry after manual field inspection:
+            </p>
+
+            <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 text-xs space-y-1">
+              <div className="font-bold text-white truncate">{currentIssue.title}</div>
+              <div className="text-slate-400 font-mono text-[11px]">Ticket: {ticketId} • Category: {catLabel}</div>
+              <div className="text-slate-400 truncate text-[11px]">📍 {currentIssue.address}</div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-300">
+                Manual Inspection Finding / Reason *
+              </label>
+
+              {/* Quick Preset Buttons */}
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  'Ground physical inspection: No defect or hazard on site',
+                  'Fabricated / spurious citizen submission',
+                  'Inauthentic / irrelevant photograph attachment',
+                  'Duplicate report / resolved earlier',
+                ].map((preset) => (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setDeleteReason(preset)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] transition cursor-pointer border ${
+                      deleteReason === preset
+                        ? 'bg-rose-500/30 border-rose-400/60 text-rose-200 font-bold'
+                        : 'bg-white/5 border-white/10 text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+
+              <textarea
+                rows={2}
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                placeholder="Enter manual inspection findings..."
+                className="w-full p-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-rose-400/50 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/10">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteReport}
+                className="px-5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-lg shadow-rose-600/30 cursor-pointer disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{isDeleting ? 'Deleting...' : 'Confirm & Delete False Report'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

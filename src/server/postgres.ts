@@ -453,6 +453,13 @@ export class PostgresCitypulseDatabase {
     return this.getReportById(id);
   }
 
+  async deleteReport(id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
+    await this.ensureSchema();
+    const res = await pool.query('DELETE FROM reports WHERE id = $1 RETURNING id', [id]);
+    return (res.rowCount ?? 0) > 0;
+  }
+
   async addUpvote(id: string) {
     if (!isUuid(id)) return null;
     await this.ensureSchema();

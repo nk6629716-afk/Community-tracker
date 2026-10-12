@@ -421,6 +421,17 @@ export const api = {
     return res.json();
   },
 
+  async deleteReport(id: string, reason?: string): Promise<{ message: string; id: string }> {
+    const res = await fetch(apiUrl(`/api/reports/${id}`), {
+      method: 'DELETE',
+      headers: getHeaders(),
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to delete report');
+    return data;
+  },
+
   async voteIssue(id: string): Promise<{ success: boolean; issue?: Issue; message?: string }> {
     const res = await fetch(apiUrl(`/api/reports/${id}/upvote`), {
       method: 'POST',
