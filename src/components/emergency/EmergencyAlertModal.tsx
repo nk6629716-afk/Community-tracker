@@ -199,7 +199,7 @@ export const EmergencyAlertModal: React.FC<EmergencyAlertModalProps> = ({ alert,
                       .replace(/\s+/g, ' ')
                       .trim();
                     if (!cleaned || cleaned.toLowerCase().includes('master admin')) {
-                      return 'Master Administrator (Nikhil)';
+                      return 'Master Administrator';
                     }
                     return cleaned;
                   })()}

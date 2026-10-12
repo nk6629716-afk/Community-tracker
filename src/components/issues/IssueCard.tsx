@@ -50,20 +50,33 @@ export const IssueCard: React.FC<IssueCardProps> = ({ issue, onClick, userLocati
         )}
 
         {/* Category Pill & Ticket ID on top left */}
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-10">
-          <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold tracking-wider uppercase bg-[#0a0d1f]/85 text-cyan-300 border border-cyan-500/30 backdrop-blur-md shadow-md">
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 z-20">
+          <span className="px-2.5 py-1 rounded-lg text-[10px] font-extrabold tracking-wider uppercase bg-slate-950/90 text-cyan-300 border border-cyan-400/40 backdrop-blur-md shadow-md">
             {catLabel}
           </span>
-          <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-black/80 text-white backdrop-blur-md shadow-md border border-white/15">
+          <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-slate-900/95 text-amber-300 border border-amber-400/40 backdrop-blur-md shadow-md">
             {ticketId}
           </span>
         </div>
 
         {/* Status Pill on top right */}
-        <div className="absolute top-2.5 right-2.5 z-10">
-          <span className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold backdrop-blur-md shadow-md border ${status.border} ${status.bg} ${status.color}`}>
-            ● {status.label}
-          </span>
+        <div className="absolute top-2.5 right-2.5 z-20">
+          {issue.status === 'resolved' ? (
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-600 text-white shadow-lg border border-emerald-400/60 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-white shadow-[0_0_6px_#fff]" />
+              <span>Resolved</span>
+            </span>
+          ) : issue.status === 'in_progress' ? (
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-amber-500 text-slate-950 shadow-lg border border-amber-300/80 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-slate-950 animate-pulse" />
+              <span>In Progress</span>
+            </span>
+          ) : (
+            <span className="px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-sky-600 text-white shadow-lg border border-sky-400/60 flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span>Reported</span>
+            </span>
+          )}
         </div>
       </div>
 

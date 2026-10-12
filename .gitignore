@@ -1,8 +1,24 @@
-node_modules
-.npm-cache
-dist
+# Dependencies
+node_modules/
+.npm-cache/
+
+# Production Build Output
+dist/
+
+# Environment Variables & Secrets (CRITICAL - NEVER COMMIT)
 .env
 .env.*
 *.env
+render.env
+netlify.env
 !.env.example
+
+# Local Stores & Database Dumps
 citypulse_store.json
+*.db
+*.sqlite
+
+# OS and Editor Artifacts
+.DS_Store
+Thumbs.db
+*.log

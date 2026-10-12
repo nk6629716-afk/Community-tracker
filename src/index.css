@@ -377,7 +377,7 @@ html.light h6 {
   color: #0f172a !important;
 }
 
-html.light .text-white:not(.btn-glass-primary *):not([class*="bg-violet"]):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-cyan"]):not([class*="bg-red"]):not([class*="bg-blue"]):not(.badge *) {
+html.light .text-white:not(.btn-glass-primary *):not([class*="bg-violet"]):not([class*="bg-indigo"]):not([class*="bg-rose"]):not([class*="bg-amber"]):not([class*="bg-emerald"]):not([class*="bg-cyan"]):not([class*="bg-red"]):not([class*="bg-blue"]):not([class*="bg-sky"]):not([class*="bg-slate-9"]):not([class*="bg-black"]):not(.badge *):not([class*="z-20"] *) {
   color: #0f172a !important;
 }
 
@@ -403,6 +403,61 @@ html.light [class*="bg-[#0c0f24]"],
 html.light .bg-slate-950,
 html.light .bg-slate-900 {
   background-color: #ffffff !important;
+}
+
+/* Modals & Dialogs in Day Mode */
+html.light .glass-modal,
+html.light [class*="glass-modal"] {
+  background: #ffffff !important;
+  background-image: none !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25) !important;
+}
+
+html.light .glass-modal h1,
+html.light .glass-modal h2,
+html.light .glass-modal h3,
+html.light .glass-modal h4 {
+  color: #0f172a !important;
+}
+
+html.light .glass-modal p {
+  color: #334155 !important;
+}
+
+html.light .glass-modal label {
+  color: #1e293b !important;
+}
+
+html.light .glass-modal form {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .glass-modal .bg-white\/5 {
+  background-color: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+
+html.light .glass-modal .text-slate-400 {
+  color: #64748b !important;
+}
+
+html.light .glass-modal .text-slate-300 {
+  color: #475569 !important;
+}
+
+html.light .glass-modal .border-white\/10 {
+  border-color: #e2e8f0 !important;
+}
+
+html.light .glass-modal .bg-black\/60 {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+
+html.light .glass-modal .bg-black\/60 .text-amber-300 {
+  color: #b45309 !important;
 }
 
 html.light [class*="border-white/10"],

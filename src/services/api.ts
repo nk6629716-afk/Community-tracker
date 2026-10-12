@@ -90,7 +90,7 @@ function sanitizeUser(user: AuthUser): AuthUser {
     .trim();
   return {
     ...user,
-    name: cleanName || (user.role === 'ADMIN' ? 'Master Administrator (Nikhil)' : 'Authorized User'),
+    name: cleanName || (user.role === 'ADMIN' ? 'Master Administrator' : 'Authorized User'),
   };
 }
 
@@ -269,19 +269,27 @@ export const api = {
     return data;
   },
 
-  async generateDispatchCode(assignedEmail: string, note?: string): Promise<{
+  async generateDispatchCode(
+    assignedEmail: string, 
+    note?: string,
+    codeType: 'TIMER' | 'PERMANENT' = 'TIMER',
+    usageType: 'SINGLE_USE' | 'MULTI_USE' = 'SINGLE_USE'
+  ): Promise<{
     message: string;
     code: string;
     assignedToEmail: string;
     assignedToName?: string;
-    expiresAt: string;
-    expiresInSeconds: number;
+    expiresAt: string | null;
+    expiresInSeconds: number | null;
+    codeType: 'TIMER' | 'PERMANENT';
+    usageType: 'SINGLE_USE' | 'MULTI_USE';
+    isPermanent: boolean;
     generatedBy: string;
   }> {
     const res = await fetch(apiUrl('/api/admin/dispatch-code/generate'), {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ assignedEmail, note }),
+      body: JSON.stringify({ assignedEmail, note, codeType, usageType }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to generate dispatch authorization code');
@@ -295,7 +303,9 @@ export const api = {
     generatedBy: string;
     generatedByUserId?: string;
     createdAt: number;
-    expiresAt: number;
+    expiresAt: number | null;
+    codeType: 'TIMER' | 'PERMANENT';
+    usageType: 'SINGLE_USE' | 'MULTI_USE';
     note?: string;
     usedCount: number;
   }>> {
