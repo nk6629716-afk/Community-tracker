@@ -18,6 +18,7 @@ import { EmergencyAlertModal } from './components/emergency/EmergencyAlertModal'
 import { CitizenDashboard } from './components/dashboard/CitizenDashboard';
 import { AuthorityDashboard } from './components/dashboard/AuthorityDashboard';
 import { CommunityTrackerBootScreen } from './components/loading/CommunityTrackerBootScreen';
+import { getTicketId } from './utils/formatters';
 
 export default function App() {
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -27,6 +28,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showBootScreen, setShowBootScreen] = useState<boolean>(true);
   const [prefilledLocation, setPrefilledLocation] = useState<string | undefined>(undefined);
+  const [prefilledCoords, setPrefilledCoords] = useState<{ lat: number; lng: number } | undefined>(undefined);
+  const [pendingIssueParam, setPendingIssueParam] = useState<string | null>(null);
   const [notification, setNotification] = useState<string | null>(null);
 
   // Realtime High-Priority Emergency Broadcast Alert Modal State
@@ -37,6 +40,63 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authDefaultRole, setAuthDefaultRole] = useState<'CITIZEN' | 'AUTHORITY'>('CITIZEN');
   const [authDefaultMode, setAuthDefaultMode] = useState<'login' | 'signup'>('login');
+
+  // Deep-linking from scanned QR codes or shared URLs
+  useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const tabParam = urlParams.get('tab');
+      const locationParam = urlParams.get('location');
+      const latParam = urlParams.get('lat');
+      const lngParam = urlParams.get('lng');
+      const isQr = urlParams.get('qr');
+      const issueParam = urlParams.get('issue') || urlParams.get('ticket');
+
+      if (tabParam === 'report' || isQr === '1' || isQr === 'true' || locationParam) {
+        setCurrentTab('report');
+        if (locationParam) {
+          const decodedLoc = decodeURIComponent(locationParam);
+          setPrefilledLocation(decodedLoc);
+        }
+        if (latParam && lngParam) {
+          const lat = parseFloat(latParam);
+          const lng = parseFloat(lngParam);
+          if (!isNaN(lat) && !isNaN(lng)) {
+            setPrefilledCoords({ lat, lng });
+          }
+        }
+        if (isQr) {
+          showToast(`📸 Civic QR Station Scanned: Reporting location locked for "${locationParam ? decodeURIComponent(locationParam) : 'Selected Point'}"`);
+        }
+      } else if (tabParam) {
+        setCurrentTab(tabParam);
+      }
+
+      if (issueParam) {
+        setPendingIssueParam(issueParam);
+      }
+    } catch (e) {
+      console.warn('Failed to parse URL query parameters for QR deep linking', e);
+    }
+  }, []);
+
+  // When issues load, resolve any pending issue from QR scan or shared link
+  useEffect(() => {
+    if (pendingIssueParam && issues.length > 0) {
+      const found = issues.find(
+        (i) =>
+          i.id === pendingIssueParam ||
+          (i.ticket_id && i.ticket_id.toLowerCase() === pendingIssueParam.toLowerCase()) ||
+          getTicketId(i).toLowerCase() === pendingIssueParam.toLowerCase()
+      );
+      if (found) {
+        setSelectedIssue(found);
+        setCurrentTab('details');
+        setPendingIssueParam(null);
+        showToast(`📍 Ticket Loaded from QR / Link: ${getTicketId(found)}`);
+      }
+    }
+  }, [pendingIssueParam, issues]);
 
   // Load authenticated user on launch
   useEffect(() => {
@@ -179,9 +239,13 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleQuickReportFromQR = (locationName: string) => {
+  const handleQuickReportFromQR = (locationName: string, coords?: { lat: number; lng: number }) => {
     setPrefilledLocation(locationName);
+    if (coords) {
+      setPrefilledCoords(coords);
+    }
     setCurrentTab('report');
+    showToast(`📍 Station Locked: "${locationName}". Ready to submit civic report.`);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -332,6 +396,7 @@ export default function App() {
             onBack={() => handleNavigate('dashboard')}
             onSuccess={handleReportSuccess}
             prefilledLocation={prefilledLocation}
+            prefilledCoords={prefilledCoords}
           />
         )}
 

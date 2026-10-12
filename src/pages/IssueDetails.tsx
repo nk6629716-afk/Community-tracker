@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ArrowLeft, MapPin, Sparkles, AlertTriangle, ShieldCheck, Share2, Check, ExternalLink, Tag, Copy, Trash2, X, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ArrowLeft, MapPin, Sparkles, AlertTriangle, ShieldCheck, Share2, Check, ExternalLink, Tag, Copy, Trash2, X, ShieldAlert, QrCode, Download, Printer } from 'lucide-react';
+import QRCode from 'qrcode';
 import { Issue, IssueStatus } from '../types';
 import { CATEGORY_LABELS, SEVERITY_INFO, getPriorityBadge } from '../utils/priority';
 import { formatDateTime, getTicketId } from '../utils/formatters';
@@ -31,6 +32,11 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
   const [deleteReason, setDeleteReason] = useState('Ground physical inspection completed: False report / No hazard detected on site.');
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Ticket QR Code State
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [ticketQrDataUrl, setTicketQrDataUrl] = useState<string>('');
+  const [copiedQrLink, setCopiedQrLink] = useState(false);
+
   const catLabel = CATEGORY_LABELS[currentIssue.category] || currentIssue.category;
   const sevInfo = SEVERITY_INFO[currentIssue.severity];
   const priorityBadge = getPriorityBadge(currentIssue.priority_score);
@@ -58,6 +64,31 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
     navigator.clipboard.writeText(ticketId);
     setCopiedTicket(true);
     setTimeout(() => setCopiedTicket(false), 2000);
+  };
+
+  // Generate real Ticket QR Code on demand
+  useEffect(() => {
+    if (showQrModal && !ticketQrDataUrl) {
+      const ticketUrl = `${window.location.origin}${window.location.pathname}?issue=${currentIssue.id}&ticket=${ticketId}`;
+      QRCode.toDataURL(ticketUrl, {
+        width: 350,
+        margin: 2,
+        color: { dark: '#0a0f1d', light: '#ffffff' },
+        errorCorrectionLevel: 'H',
+      })
+        .then(setTicketQrDataUrl)
+        .catch((err) => console.error('Failed to generate ticket QR:', err));
+    }
+  }, [showQrModal, currentIssue.id, ticketId, ticketQrDataUrl]);
+
+  const handleDownloadTicketQr = () => {
+    if (!ticketQrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = ticketQrDataUrl;
+    a.download = `Citypulse_Ticket_QR_${ticketId}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   const handleDeleteReport = async () => {
@@ -130,9 +161,19 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
             ) : (
               <>
                 <Share2 className="w-3.5 h-3.5 text-slate-500" />
-                <span>Share Issue</span>
+                <span>Share</span>
               </>
             )}
+          </button>
+
+          {/* Ticket QR Code Button */}
+          <button
+            onClick={() => setShowQrModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+            title="Generate & print physical QR code for this ticket"
+          >
+            <QrCode className="w-3.5 h-3.5 text-[#123B5D]" />
+            <span>Ticket QR</span>
           </button>
         </div>
       </div>
@@ -405,6 +446,80 @@ export const IssueDetails: React.FC<IssueDetailsProps> = ({
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeleting ? 'Deleting...' : 'Confirm & Delete False Report'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Ticket QR Code Modal */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 space-y-4 border border-slate-300 shadow-2xl text-center">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2 text-[#123B5D]">
+                <QrCode className="w-5 h-5" />
+                <h3 className="text-base font-bold text-slate-900">
+                  Incident Ticket QR Code
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowQrModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <span className="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-[#123B5D] border border-slate-200">
+                {ticketId}
+              </span>
+              <h4 className="font-bold text-slate-900 text-sm line-clamp-1">{currentIssue.title}</h4>
+              <p className="text-slate-500 text-xs">📍 {currentIssue.address}</p>
+            </div>
+
+            {/* Scannable QR Code Image */}
+            <div className="p-3 bg-white border-2 border-slate-900 rounded-2xl shadow-md inline-block relative mx-auto">
+              {ticketQrDataUrl ? (
+                <img
+                  src={ticketQrDataUrl}
+                  alt={`Ticket QR for ${ticketId}`}
+                  className="w-48 h-48 object-contain"
+                />
+              ) : (
+                <div className="w-48 h-48 flex items-center justify-center text-xs text-slate-400">
+                  Generating QR...
+                </div>
+              )}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="w-8 h-8 bg-white rounded-md border border-slate-900 flex items-center justify-center shadow-xs">
+                  <span className="font-black text-[10px] text-[#123B5D]">CP</span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-snug">
+              Point any smartphone camera to check this report's real-time civic status, priority score, and resolution timeline.
+            </p>
+
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={handleDownloadTicketQr}
+                className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Save PNG</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="py-2.5 px-3 bg-[#123B5D] hover:bg-[#0B263D] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print Placard</span>
               </button>
             </div>
           </div>
