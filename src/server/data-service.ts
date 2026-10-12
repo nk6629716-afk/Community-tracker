@@ -14,8 +14,8 @@ type ReportFilters = {
 const postgres = process.env.DATABASE_URL ? new PostgresCitypulseDatabase() : null;
 
 /**
- * Uses Supabase Postgres whenever DATABASE_URL is configured. The JSON store is
- * retained solely for local demo work, never as a production persistence layer.
+ * Uses standard managed PostgreSQL (e.g. Aiven, Render, Neon) whenever DATABASE_URL is configured.
+ * The JSON store is retained solely for local demo / offline work, never as a production persistence layer.
  */
 export const dataService = {
   isPersistent: Boolean(postgres),
