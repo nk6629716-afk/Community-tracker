@@ -47,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'map', label: 'Live Map', icon: MapPin },
     { id: 'reports', label: 'Feed', icon: FileText },
     { id: 'analytics', label: 'Stats', icon: BarChart3 },
+    { id: 'qr', label: 'QR Stations', icon: QrCode },
     { id: 'citizen', label: 'Citizen Hub', icon: User },
     { id: 'authority', label: 'Admin Panel', icon: ShieldAlert },
   ];
@@ -208,7 +209,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Mobile Bottom Navigation Bar */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#060713]/90 backdrop-blur-xl border-t border-white/10 shadow-2xl">
-        <div className={`grid ${currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN' ? 'grid-cols-6' : 'grid-cols-5'} items-center h-14`}>
+        <div className={`grid ${currentUser?.role === 'AUTHORITY' || currentUser?.role === 'ADMIN' ? 'grid-cols-7' : 'grid-cols-6'} items-center h-14`}>
           {navItems.filter(item => {
             if (item.id === 'authority' && currentUser?.role !== 'AUTHORITY' && currentUser?.role !== 'ADMIN') {
               return false;

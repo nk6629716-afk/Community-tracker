@@ -24,12 +24,14 @@ interface ReportIssueProps {
   onBack: () => void;
   onSuccess: (issueId: string) => void;
   prefilledLocation?: string;
+  prefilledCoords?: { lat: number; lng: number };
 }
 
 export const ReportIssue: React.FC<ReportIssueProps> = ({
   onBack,
   onSuccess,
   prefilledLocation,
+  prefilledCoords,
 }) => {
   const [currentStep, setCurrentStep] = useState<number>(1);
 
@@ -42,10 +44,14 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
 
   // Location State
-  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>({
-    lat: 28.6139,
-    lng: 77.2090,
-  });
+  const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>(
+    prefilledCoords && typeof prefilledCoords.lat === 'number' && typeof prefilledCoords.lng === 'number'
+      ? prefilledCoords
+      : {
+          lat: 28.6139,
+          lng: 77.2090,
+        }
+  );
   const [address, setAddress] = useState<string>(prefilledLocation || 'Connaught Place, Central Delhi 110001');
   const [isLocating, setIsLocating] = useState<boolean>(false);
 
@@ -60,7 +66,10 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
     if (prefilledLocation) {
       setAddress(prefilledLocation);
     }
-  }, [prefilledLocation]);
+    if (prefilledCoords && typeof prefilledCoords.lat === 'number' && typeof prefilledCoords.lng === 'number') {
+      setCoordinates(prefilledCoords);
+    }
+  }, [prefilledLocation, prefilledCoords]);
 
   const categories: { id: IssueCategory; label: string; desc: string; icon: string }[] = [
     { id: 'road_damage', label: 'Road Damage', desc: 'Potholes, fissures, broken pavement, asphalt wear', icon: '🛣️' },
@@ -230,6 +239,31 @@ export const ReportIssue: React.FC<ReportIssueProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Civic QR Station Auto-Lock Banner */}
+      {prefilledLocation && (
+        <div className="bg-gradient-to-r from-cyan-950/70 via-slate-900/80 to-blue-950/60 border border-cyan-400/40 rounded-2xl p-4 flex items-center justify-between gap-3 text-xs text-cyan-200 shadow-lg">
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 rounded-xl bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">
+              <MapPin className="w-4 h-4" />
+            </span>
+            <div>
+              <span className="font-bold text-white block text-sm">📍 Civic QR Station Location Locked</span>
+              <span className="text-slate-300 text-xs">
+                Station Point: <strong className="text-cyan-300">{address}</strong>
+                {coordinates && typeof coordinates.lat === 'number' && (
+                  <span className="font-mono text-[11px] text-cyan-400/80 ml-1.5">
+                    ({coordinates.lat.toFixed(4)}, {coordinates.lng.toFixed(4)})
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+          <span className="px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold bg-cyan-900/80 text-cyan-300 border border-cyan-400/50 uppercase tracking-wider shrink-0">
+            QR LOCKED
+          </span>
+        </div>
+      )}
 
       {/* STEP 1: CATEGORY SELECTION */}
       {currentStep === 1 && (
